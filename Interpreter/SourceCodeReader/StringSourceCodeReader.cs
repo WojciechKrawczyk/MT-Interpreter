@@ -8,7 +8,7 @@
         public StringSourceCodeReader(string sourceCode)
         {
             _sourceCode = sourceCode;
-            _maxPosition = sourceCode.Length - 1;
+            _maxPosition = sourceCode.Length;
             _currentPosition = 0;
         }
 
@@ -17,9 +17,11 @@
             if (_currentPosition > _maxPosition)
                 throw new NoSymbolException();
 
-            return _sourceCode[_currentPosition++];
+            return _currentPosition < _maxPosition 
+                ? _sourceCode[_currentPosition++] 
+                : (char)3;
         }
 
-        public bool HasNextSymbol() => _currentPosition <= _maxPosition;
+        public bool HasNextSymbol() => _currentPosition < _maxPosition;
     }
 }
