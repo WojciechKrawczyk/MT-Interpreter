@@ -1,4 +1,5 @@
-﻿using Interpreter.Maps;
+﻿using Interpreter.Errors;
+using Interpreter.Maps;
 using Interpreter.SourceCodeReader;
 using Interpreter.Tokens;
 using System.Text;
@@ -23,7 +24,7 @@ namespace Interpreter.Lexers
             if (!_sourceCodeReader.HasNextSymbol())
                 return GenerateToken(TokenType.EndOfFile, "Eof");
 
-            StringBuilder buffor = new StringBuilder();
+            var buffor = new StringBuilder();
             while(true)
             {
                 var symbol = GetNextSymbol();
@@ -40,7 +41,12 @@ namespace Interpreter.Lexers
                 }
                 else if (symbol == '#')
                 {
-                    return null;//TODO
+                    symbol = GetNextSymbol();
+                    while (symbol != '\n')
+                    {
+                        symbol = GetNextSymbol();
+                    }
+                    continue;
                 }
                 else if (char.IsLetter(symbol))
                 {
@@ -52,7 +58,7 @@ namespace Interpreter.Lexers
                         symbol = GetNextSymbol();
                     }
                     SetBufferedSymbol(symbol);
-                    var lexeme = buffor.ToString();
+                    var lexeme = buffor.ToString(); //TODO error - too long
                     if (KeywordToTokenTypeMap.Map.ContainsKey(lexeme))
                         return GenerateToken(KeywordToTokenTypeMap.Map[lexeme], lexeme);
                     else
@@ -68,12 +74,34 @@ namespace Interpreter.Lexers
                         symbol = GetNextSymbol();
                     }
                     SetBufferedSymbol(symbol);
-                    var number = buffor.ToString();
-                    return new Token { TokenType = TokenType.IntLiteral, Lexeme = number, Line = _line, Position = _position, Value = number };
+                    var number = buffor.ToString(); //TODO error - check range
+                    return GenerateToken(TokenType.IntLiteral, number, number);
                 }
                 else if (symbol == '"')
                 {
-                    return null;//TODO
+                    symbol = GetNextSymbol();
+                    while(symbol != '"')
+                    {
+                        if(symbol == '\\')
+                        {
+                            var nextSymbol = GetNextSymbol();
+                            if (nextSymbol == '\\')
+                                buffor.Append('\\');
+                            else if (nextSymbol == 'n')
+                                buffor.Append('\n');
+                            else if (nextSymbol == '"')
+                                buffor.Append('"');
+                            else if (nextSymbol == 't')
+                                buffor.Append('\t');
+                            else
+                                buffor.Append(nextSymbol);  //TODO: error - not valid char in string
+                            symbol = GetNextSymbol();
+                            continue;
+                        }
+                        symbol = GetNextSymbol();
+                    }
+                    var stringLiteral = buffor.ToString();
+                    return GenerateToken(TokenType.StringLiteral, stringLiteral);
                 }
                 else
                 {

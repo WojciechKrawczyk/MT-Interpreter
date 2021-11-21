@@ -19,8 +19,8 @@
         //brackets
         RoundOpenBracket,
         RoundCloseBracker,
-        SquareOpenBracket,
-        SquareCloseBracket,
+        CurlyOpenBracket,
+        CurlyCloseBracket,
 
         //math operators
         Plus,

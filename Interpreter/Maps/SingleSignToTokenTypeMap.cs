@@ -9,8 +9,8 @@ namespace Interpreter.Maps
         {
             {'(', TokenType.RoundOpenBracket},
             {')', TokenType.RoundCloseBracker},
-            {'{', TokenType.SquareOpenBracket},
-            {'}', TokenType.SquareCloseBracket},
+            {'{', TokenType.CurlyOpenBracket},
+            {'}', TokenType.CurlyCloseBracket},
             {'=', TokenType.Assign},
             {'+', TokenType.Plus},
             {'-', TokenType.Minus},

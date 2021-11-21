@@ -4,6 +4,6 @@ namespace Interpreter.SourceCodeReader
 {
     public class NoSymbolException : Exception
     {
-        public NoSymbolException() : base("W źródle kodu programu nie ma już znaków.") { }
+        public NoSymbolException() : base("No more signs in this code source.") { }
     }
 }

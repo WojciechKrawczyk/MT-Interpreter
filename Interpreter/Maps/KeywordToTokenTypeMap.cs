@@ -18,7 +18,10 @@ namespace Interpreter.Maps
             {"if", TokenType.If},
             {"else", TokenType.Else},
             {"while", TokenType.While},
-            {"return", TokenType.Return}
+            {"return", TokenType.Return},
+            {"and", TokenType.And},
+            {"or", TokenType.Or},
+            {"not", TokenType.Not}
         };
     }
 }
