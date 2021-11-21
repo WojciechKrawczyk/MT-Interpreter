@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Interpreter.Lexers;
+using Interpreter.SourceCodeReader;
+using System;
 
 namespace Interpreter
 {
@@ -6,7 +8,10 @@ namespace Interpreter
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            StringSourceCodeReader reader = new StringSourceCodeReader("program ");
+            Lexer lexer = new Lexer(reader);
+            var x = lexer.GetNextToken().TokenType;
+            Console.WriteLine(char.IsLetterOrDigit('3'));
         }
     }
 }

@@ -2,7 +2,7 @@
 using System.Text;
 using Xunit;
 
-namespace Tests.SourceCodeReaderTest
+namespace Tests.SourceCodeReaderTests
 {
     public class StringSourceCodeReaderTest
     {
