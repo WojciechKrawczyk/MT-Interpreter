@@ -56,7 +56,7 @@ namespace Tests.LexerTests
 
         [Theory]
         [InlineData("program \n { \n int i = 3; \n }", 
-            new TokenType[]
+            new[]
             { 
                 TokenType.Program, 
                 TokenType.CurlyOpenBracket, 
@@ -64,8 +64,8 @@ namespace Tests.LexerTests
                 TokenType.CurlyCloseBracket, 
                 TokenType.EndOfFile 
             })]
-        [InlineData("program \n { \n bool t = 3 == 4; \n if (t) \n { \n print(\"prawda\"); \n } \n}",
-            new TokenType[]
+        [InlineData("program \r\n { \n bool t = 3 == 4; \n if (t) \n { \n print(\"prawda\"); \n } \n}",
+            new[]
             {
                 TokenType.Program,
                 TokenType.CurlyOpenBracket,
@@ -78,7 +78,7 @@ namespace Tests.LexerTests
                 TokenType.EndOfFile
             })]
         [InlineData("program\n{\n#new comment\nclass Rectangle\n{\nint X;\nint Y;\ndef init(int x, int y)\n{\nX = x;\nY=y;\n}\n}\ndef main()\n{\n}\n}",
-            new TokenType[]
+            new[]
             {
                 TokenType.Program,
                 TokenType.CurlyOpenBracket,
@@ -113,7 +113,7 @@ namespace Tests.LexerTests
             tokens.Add(token.TokenType);
 
             Assert.Equal(tokens.Count, expectedTokens.Length);
-            for (int i = 0; i < tokens.Count; i++)
+            for (var i = 0; i < tokens.Count; i++)
             {
                 Assert.Equal(tokens[i], expectedTokens[i]);
             }
