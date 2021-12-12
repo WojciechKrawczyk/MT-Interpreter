@@ -8,6 +8,8 @@ namespace Interpreter.Lexers
 {
     public class Lexer : ILexer
     {
+        public Token CurrentToken { get; private set; }
+        private Token _nextToken = null;
         private readonly ISourceCodeReader _sourceCodeReader;
         private int _line = 1;
         private int _position = 0;
@@ -21,6 +23,23 @@ namespace Interpreter.Lexers
         }
 
         public Token GetNextToken()
+        {
+            if (_nextToken != null)
+            {
+                var tmp = _nextToken;
+                _nextToken = null;
+                return tmp;
+            }
+            CurrentToken = BuildNextToken();
+            return CurrentToken;
+        }
+
+        public void RollbackToken(Token token)
+        {
+            _nextToken = token;
+        }
+
+        private Token BuildNextToken()
         {
             if (!_sourceCodeReader.HasNextSymbol())
                 return GenerateToken(TokenType.EndOfFile, "Eof");

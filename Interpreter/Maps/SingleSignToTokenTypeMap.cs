@@ -5,10 +5,10 @@ namespace Interpreter.Maps
 {
     public static class SingleSignToTokenTypeMap
     {
-        public static Dictionary<char, TokenType> Map = new Dictionary<char, TokenType>
+        public static readonly Dictionary<char, TokenType> Map = new()
         {
             {'(', TokenType.RoundOpenBracket},
-            {')', TokenType.RoundCloseBracker},
+            {')', TokenType.RoundCloseBracket},
             {'{', TokenType.CurlyOpenBracket},
             {'}', TokenType.CurlyCloseBracket},
             {'=', TokenType.Assign},

@@ -22,7 +22,7 @@ namespace Tests.LexerTests
         [InlineData("else", TokenType.Else)]
         [InlineData("return", TokenType.Return)]
         [InlineData("(", TokenType.RoundOpenBracket)]
-        [InlineData(")", TokenType.RoundCloseBracker)]
+        [InlineData(")", TokenType.RoundCloseBracket)]
         [InlineData("{", TokenType.CurlyOpenBracket)]
         [InlineData("}", TokenType.CurlyCloseBracket)]
         [InlineData("+", TokenType.Plus)]
@@ -70,9 +70,9 @@ namespace Tests.LexerTests
                 TokenType.Program,
                 TokenType.CurlyOpenBracket,
                 TokenType.Bool, TokenType.Identifier, TokenType.Assign, TokenType.IntLiteral, TokenType.Equal, TokenType.IntLiteral, TokenType.Semicolon,
-                TokenType.If, TokenType.RoundOpenBracket, TokenType.Identifier, TokenType.RoundCloseBracker,
+                TokenType.If, TokenType.RoundOpenBracket, TokenType.Identifier, TokenType.RoundCloseBracket,
                 TokenType.CurlyOpenBracket,
-                TokenType.Identifier, TokenType.RoundOpenBracket, TokenType.StringLiteral, TokenType.RoundCloseBracker, TokenType.Semicolon,
+                TokenType.Identifier, TokenType.RoundOpenBracket, TokenType.StringLiteral, TokenType.RoundCloseBracket, TokenType.Semicolon,
                 TokenType.CurlyCloseBracket,
                 TokenType.CurlyCloseBracket,
                 TokenType.EndOfFile
@@ -86,13 +86,13 @@ namespace Tests.LexerTests
                 TokenType.CurlyOpenBracket, 
                 TokenType.Int, TokenType.Identifier, TokenType.Semicolon,
                 TokenType.Int, TokenType.Identifier, TokenType.Semicolon,
-                TokenType.Def, TokenType.Identifier, TokenType.RoundOpenBracket, TokenType.Int, TokenType.Identifier, TokenType.Comma, TokenType.Int, TokenType.Identifier, TokenType.RoundCloseBracker,
+                TokenType.Def, TokenType.Init, TokenType.RoundOpenBracket, TokenType.Int, TokenType.Identifier, TokenType.Comma, TokenType.Int, TokenType.Identifier, TokenType.RoundCloseBracket,
                 TokenType.CurlyOpenBracket,
                 TokenType.Identifier, TokenType.Assign, TokenType.Identifier, TokenType.Semicolon,
                 TokenType.Identifier, TokenType.Assign, TokenType.Identifier, TokenType.Semicolon,
                 TokenType.CurlyCloseBracket,
                 TokenType.CurlyCloseBracket,
-                TokenType.Def, TokenType.Identifier, TokenType.RoundOpenBracket, TokenType.RoundCloseBracker,
+                TokenType.Def, TokenType.Identifier, TokenType.RoundOpenBracket, TokenType.RoundCloseBracket,
                 TokenType.CurlyOpenBracket,
                 TokenType.CurlyCloseBracket,
                 TokenType.CurlyCloseBracket,
