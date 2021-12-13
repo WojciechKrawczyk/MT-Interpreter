@@ -3,7 +3,7 @@ using Interpreter.ParserModule.Structures.Expressions;
 
 namespace Interpreter.ParserModule.Structures.Instructions
 {
-    public class FunctionCall : Instruction
+    public class FunctionCall : Instruction, IExpression
     {
         public string Name { get; }
         public IEnumerable<IExpression> Arguments { get; }

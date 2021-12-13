@@ -1,6 +1,8 @@
-﻿namespace Interpreter.ParserModule.Structures
+﻿using Interpreter.ParserModule.Structures.Expressions;
+
+namespace Interpreter.ParserModule.Structures
 {
-    public class Variable : INode
+    public class Variable : INode, IExpression
     {
         public string Name { get; }
 

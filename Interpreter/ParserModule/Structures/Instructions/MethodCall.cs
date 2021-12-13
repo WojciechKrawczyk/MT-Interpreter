@@ -1,6 +1,8 @@
-﻿namespace Interpreter.ParserModule.Structures.Instructions
+﻿using Interpreter.ParserModule.Structures.Expressions;
+
+namespace Interpreter.ParserModule.Structures.Instructions
 {
-    public class MethodCall : Instruction
+    public class MethodCall : Instruction, IExpression
     {
         public string ObjectName { get; }
         public FunctionCall Function { get; }
