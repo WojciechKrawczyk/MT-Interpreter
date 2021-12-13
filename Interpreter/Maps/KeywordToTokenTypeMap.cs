@@ -5,11 +5,12 @@ namespace Interpreter.Maps
 {
     public static class KeywordToTokenTypeMap
     {
-        public static Dictionary<string, TokenType> Map = new Dictionary<string, TokenType>
+        public static readonly Dictionary<string, TokenType> Map = new()
         {
             {"program", TokenType.Program},
             {"class", TokenType.Class},
             {"def", TokenType.Def},
+            {"init", TokenType.Init},
             {"int", TokenType.Int},
             {"bool", TokenType.Bool},
             {"false", TokenType.False},

@@ -18,7 +18,7 @@
 
         //brackets
         RoundOpenBracket,
-        RoundCloseBracker,
+        RoundCloseBracket,
         CurlyOpenBracket,
         CurlyCloseBracket,
 
@@ -53,6 +53,7 @@
         Semicolon,
         Comma,
         Dot,
+        Init,
         EndOfFile,
         Invalid
     }
