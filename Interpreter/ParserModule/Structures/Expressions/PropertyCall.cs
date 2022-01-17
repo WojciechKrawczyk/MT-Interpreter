@@ -1,8 +1,6 @@
-﻿using Interpreter.ParserModule.Structures.Expressions;
-
-namespace Interpreter.ParserModule.Structures.Instructions
+﻿namespace Interpreter.ParserModule.Structures.Expressions
 {
-    public class PropertyCall : Instruction, IExpression
+    public class PropertyCall : IExpression
     {
         public string ObjectName { get; }
         public string PropertyName { get; }

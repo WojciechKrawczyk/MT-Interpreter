@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using Interpreter.ParserModule.Structures;
 using Interpreter.ParserModule.Structures.Definitions;
 
 namespace Interpreter.ParserModule

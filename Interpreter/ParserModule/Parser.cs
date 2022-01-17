@@ -219,12 +219,7 @@ namespace Interpreter.ParserModule
             {
                 MustBe(TokenType.Identifier);
                 var name = _lexer.CurrentToken.Lexeme;
-                if (!Preview(TokenType.RoundOpenBracket))
-                {
-                    MustBe(TokenType.Semicolon);
-                    instruction = new PropertyCall(token.Lexeme, name);
-                    return true;
-                }
+                MustBe(TokenType.RoundOpenBracket);
                 var arguments = ParseArguments();
                 MustBe(TokenType.RoundCloseBracket);
                 MustBe(TokenType.Semicolon);
@@ -508,7 +503,7 @@ namespace Interpreter.ParserModule
             var isInt = TryToParseIntLiteral(out literal);
             var isBool = false;
             if (!isInt)
-                isBool = TryToParseIntLiteral(out literal);
+                isBool = TryToParseBoolLiteral(out literal);
             if (!isInt && !isBool)
                 throw new Exception("");
             var assignType =  TokenToType.Map(_lexer.CurrentToken);
