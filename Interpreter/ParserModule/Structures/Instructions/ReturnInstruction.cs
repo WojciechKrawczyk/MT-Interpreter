@@ -1,8 +1,9 @@
 ﻿using Interpreter.ParserModule.Structures.Expressions;
+using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Instructions
 {
-    public class ReturnInstruction : Instruction
+    public class ReturnInstruction : IInstruction
     {
         public IExpression ToReturn { get; }
 
@@ -10,5 +11,8 @@ namespace Interpreter.ParserModule.Structures.Instructions
         {
             ToReturn = toReturn;
         }
+
+        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitReturnInstruction(this, scopeContext);
     }
 }

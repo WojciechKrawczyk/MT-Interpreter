@@ -1,6 +1,4 @@
-﻿using Interpreter.Maps;
-
-namespace Interpreter.Tokens
+﻿namespace Interpreter.Tokens
 {
     public class Token
     {

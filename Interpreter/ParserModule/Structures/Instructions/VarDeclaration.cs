@@ -1,8 +1,9 @@
 ﻿using Interpreter.ParserModule.Structures.Expressions;
+using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Instructions
 {
-    public class VarDeclaration : Instruction
+    public class VarDeclaration : IInstruction
     {
         public string Name { get; }
         public string Type { get; }
@@ -14,5 +15,8 @@ namespace Interpreter.ParserModule.Structures.Instructions
             Type = type;
             Value = value;
         }
+
+        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitVarDeclarationInstruction(this, scopeContext);
     }
 }

@@ -1,37 +1,30 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 
 namespace Interpreter.SemanticValidator
 {
     public class ScopeContext
     {
-        public List<DefinedVariable> DefinedVariables { get; } = new();
+        public Dictionary<string, DefinedFunction> DefinedFunctions { get; set; } = new();
+        public Dictionary<string, DefinedVariable> DefinedVariables { get; } = new();
 
-        public bool TryAddVariable(DefinedVariable variable)
+        public ScopeContext(){}
+
+        public ScopeContext(ScopeContext scopeContext)
         {
-            if (DefinedVariables.Exists(x => x.Name == variable.Name))
+            foreach (var variable in scopeContext.DefinedVariables.Values)
             {
-                return false;
+                DefinedVariables.Add(variable.Name, new DefinedVariable(variable.Type, variable.Name, variable.IsInitialized));
             }
-            DefinedVariables.Add(variable);
-            return true;
+            DefinedFunctions = scopeContext.DefinedFunctions;
         }
 
-        public void AddVariable(DefinedVariable variable) => DefinedVariables.Add(variable);
-
-        public bool TryGetVariable(string name, out DefinedVariable variable)
+        public ScopeContext(Dictionary<string, DefinedFunction> definedFunctions, Dictionary<string, DefinedVariable> definedVariables)
         {
-            variable = null;
-            if (!DefinedVariables.Exists(x => x.Name == name))
+            DefinedFunctions = definedFunctions;
+            foreach (var variable in definedVariables.Values)
             {
-                return false;
+                DefinedVariables.Add(variable.Name, new DefinedVariable(variable.Type, variable.Name, variable.IsInitialized));
             }
-            variable = DefinedVariables.First(x => x.Name == name);
-            return true;
         }
-
-        public bool HasVariable(string name) => DefinedVariables.Exists(x => x.Name == name);
-        public bool IsVariableInitialized(string name) => DefinedVariables.First(x => x.Name == name).IsInitialized;
-        public void SetVariableInitialized(string name) => DefinedVariables.First(x => x.Name == name).InitializeVariable();
     }
 }

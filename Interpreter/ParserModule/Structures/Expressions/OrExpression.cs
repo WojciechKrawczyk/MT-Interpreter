@@ -1,9 +1,19 @@
-﻿namespace Interpreter.ParserModule.Structures.Expressions
+﻿using Interpreter.SemanticValidator;
+
+namespace Interpreter.ParserModule.Structures.Expressions
 {
-    public class OrExpression : Expression
+    public class OrExpression : IOperatorExpression, IExpression
     {
-        public OrExpression(IExpression left, IExpression right) : base(left, right)
+        
+        public IExpression Left { get; }
+        public IExpression Right { get; }
+
+        public OrExpression(IExpression left, IExpression right)
         {
+            Left = left;
+            Right = right;
         }
+        public string Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitOrExpression(this, scopeContext);
     }
 }

@@ -1,8 +1,8 @@
-﻿using Interpreter.ParserModule.Structures.Expressions;
+﻿using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Instructions
 {
-    public class MethodCall : Instruction, IExpression
+    public class MethodCall : IInstruction
     {
         public string ObjectName { get; }
         public FunctionCall Function { get; }
@@ -12,5 +12,8 @@ namespace Interpreter.ParserModule.Structures.Instructions
             ObjectName = objectName;
             Function = function;
         }
+
+        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitMethodCallInstruction(this, scopeContext);
     }
 }

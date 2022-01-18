@@ -1,9 +1,18 @@
-﻿namespace Interpreter.ParserModule.Structures.Expressions
+﻿using Interpreter.SemanticValidator;
+
+namespace Interpreter.ParserModule.Structures.Expressions
 {
-    public class AndExpression : Expression
+    public class AndExpression : IOperatorExpression, IExpression
     {
-        public AndExpression(IExpression left, IExpression right) : base(left, right)
+        public IExpression Left { get; }
+        public IExpression Right { get; }
+
+        public AndExpression(IExpression left, IExpression right)
         {
+            Left = left;
+            Right = right;
         }
+        public string Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitAndExpression(this, scopeContext);
     }
 }

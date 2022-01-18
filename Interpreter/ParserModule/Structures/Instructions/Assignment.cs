@@ -1,16 +1,20 @@
 ﻿using Interpreter.ParserModule.Structures.Expressions;
+using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Instructions
 {
-    public class Assignment : Instruction
+    public class Assignment : IInstruction
     {
-        public Variable Variable { get; }
+        public string VariableName { get; }
         public IExpression Expression { get; }
         
-        public Assignment(Variable variable, IExpression expression)
+        public Assignment(string variableName, IExpression expression)
         {
-            Variable = variable;
+            VariableName = variableName;
             Expression = expression;
         }
+
+        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitAssignmentInstruction(this, scopeContext);
     }
 }

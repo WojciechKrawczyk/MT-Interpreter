@@ -75,9 +75,9 @@ namespace Interpreter.ParserModule
             return true;
         }
 
-        private IEnumerable<Parameter> ParseParameters()
+        private IEnumerable<FunctionDefinition.Parameter> ParseParameters()
         {
-            var parameters = new List<Parameter>();
+            var parameters = new List<FunctionDefinition.Parameter>();
             var availableTypes = new[] {TokenType.Int, TokenType.Bool, TokenType.Identifier};
             if (!Preview(availableTypes))
                 return parameters;
@@ -85,7 +85,7 @@ namespace Interpreter.ParserModule
             var type = TokenToType.Map(_lexer.CurrentToken);
             MustBe(TokenType.Identifier);
             var name = _lexer.CurrentToken.Lexeme;
-            parameters.Add(new Parameter(type, name));
+            parameters.Add(new FunctionDefinition.Parameter(type, name));
             while (Preview(TokenType.Comma))
             {
                 MustBe(availableTypes);
@@ -94,15 +94,15 @@ namespace Interpreter.ParserModule
                 name = _lexer.CurrentToken.Lexeme;
                 if (parameters.Any(x => x.Name == name))
                     throw new Exception("");
-                parameters.Add(new Parameter(type, name));
+                parameters.Add(new FunctionDefinition.Parameter(type, name));
             }
             return parameters;
         }
 
-        private IEnumerable<Instruction> ParseInstructions()
+        private IEnumerable<IInstruction> ParseInstructions()
         {
-            var instructions = new List<Instruction>();
-            Instruction instruction;
+            var instructions = new List<IInstruction>();
+            IInstruction instruction;
             while (TryToParseIfInstruction(out instruction)
                    || TryToParseWhileInstruction(out instruction)
                    || TryToParseFlatInitInstruction(out instruction)
@@ -114,7 +114,7 @@ namespace Interpreter.ParserModule
             return instructions;
         }
 
-        private bool TryToParseIfInstruction(out Instruction instruction)
+        private bool TryToParseIfInstruction(out IInstruction instruction)
         {
             instruction = null;
             if (!Preview(TokenType.If))
@@ -129,7 +129,7 @@ namespace Interpreter.ParserModule
             var instructions = ParseInstructions();
             MustBe(TokenType.CurlyCloseBracket);
 
-            IEnumerable<Instruction> elseInstructions = null;
+            IEnumerable<IInstruction> elseInstructions = null;
             if (Preview(TokenType.Else))
             {
                 MustBe(TokenType.CurlyOpenBracket);
@@ -141,7 +141,7 @@ namespace Interpreter.ParserModule
             return true;
         }
 
-        private bool TryToParseWhileInstruction(out Instruction instruction)
+        private bool TryToParseWhileInstruction(out IInstruction instruction)
         {
             instruction = null;
             if (!Preview(TokenType.While))
@@ -160,7 +160,7 @@ namespace Interpreter.ParserModule
             return true;
         }
 
-        private bool TryToParseFlatInitInstruction(out Instruction instruction)
+        private bool TryToParseFlatInitInstruction(out IInstruction instruction)
         {
             instruction = null;
             if (!Preview(new[] {TokenType.Int, TokenType.Bool}))
@@ -178,7 +178,7 @@ namespace Interpreter.ParserModule
             return true;
         }
 
-        private bool TryToParseIdentifierInstruction(out Instruction instruction)
+        private bool TryToParseIdentifierInstruction(out IInstruction instruction)
         {
             instruction = null;
             if (!Preview(TokenType.Identifier))
@@ -202,7 +202,7 @@ namespace Interpreter.ParserModule
                 if (!TryToParseExpression(out var expression))
                     throw new Exception("");
                 MustBe(TokenType.Semicolon);
-                instruction = new Assignment(new Variable(token.Lexeme), expression);
+                instruction = new Assignment(token.Lexeme, expression);
                 return true;
             }
 
@@ -230,7 +230,7 @@ namespace Interpreter.ParserModule
             return false;
         }
 
-        private bool TryToParseReturnInstruction(out Instruction instruction)
+        private bool TryToParseReturnInstruction(out IInstruction instruction)
         {
             instruction = null;
             if (!Preview(TokenType.Return))
@@ -258,15 +258,14 @@ namespace Interpreter.ParserModule
 
         private bool TryToParseExpression(out IExpression expression)
         {
-            expression = null;
-            if (!TryToParseAndExpression(out var left))
+            if (!TryToParseAndExpression(out expression))
                 return false;
 
             while (Preview(TokenType.Or))
             {
                 if (!TryToParseAndExpression(out var right))
                     throw new Exception("");
-                left = new OrExpression(left, right);
+                expression = new OrExpression(expression, right);
             }
 
             return true;
@@ -274,15 +273,14 @@ namespace Interpreter.ParserModule
 
         private bool TryToParseAndExpression(out IExpression expression)
         {
-            expression = null;
-            if (!TryToParseRelativeExpression(out var left))
+            if (!TryToParseRelativeExpression(out expression))
                 return false;
 
             while (Preview(TokenType.And))
             {
                 if (!TryToParseRelativeExpression(out var right))
                     throw new Exception("");
-                left = new AndExpression(left, right);
+                expression = new AndExpression(expression, right);
             }
 
             return true;
@@ -290,8 +288,7 @@ namespace Interpreter.ParserModule
 
         private bool TryToParseRelativeExpression(out IExpression expression)
         {
-            expression = null;
-            if (!TryToParseAdditiveExpression(out var left))
+            if (!TryToParseAdditiveExpression(out expression))
                 return false;
 
             while (Preview(new [] {TokenType.Less, TokenType.LessOrEqual, TokenType.Grater, TokenType.GraterOrEqual, TokenType.Equal, TokenType.NotEqual}))
@@ -299,7 +296,7 @@ namespace Interpreter.ParserModule
                 var type = _lexer.CurrentToken.TokenType;
                 if (!TryToParseAdditiveExpression(out var right))
                     throw new Exception("");
-                left = new RelativeExpression(TokenTypeToRelativeExpressionType.Map[type], left, right);
+                expression = new RelativeExpression(TokenTypeToRelativeExpressionType.Map[type], expression, right);
             }
 
             return true;
@@ -307,8 +304,7 @@ namespace Interpreter.ParserModule
 
         private bool TryToParseAdditiveExpression(out IExpression expression)
         {
-            expression = null;
-            if (!TryToParseMultiplicativeExpression(out var left))
+            if (!TryToParseMultiplicativeExpression(out expression))
                 return false;
 
             while (Preview(new [] {TokenType.Plus, TokenType.Minus}))
@@ -316,7 +312,7 @@ namespace Interpreter.ParserModule
                 var type = _lexer.CurrentToken.TokenType;
                 if (!TryToParseMultiplicativeExpression(out var right))
                     throw new Exception("");
-                left = new AdditiveExpression(TokenTypeToAdditiveExpressionType.Map[type], left, right);
+                expression = new AdditiveExpression(TokenTypeToAdditiveExpressionType.Map[type], expression, right);
             }
 
             return true;
@@ -324,8 +320,7 @@ namespace Interpreter.ParserModule
 
         private bool TryToParseMultiplicativeExpression(out IExpression expression)
         {
-            expression = null;
-            if (!TryToParseNegationExpression(out var left))
+            if (!TryToParseNegationExpression(out expression))
                 return false;
 
             while (Preview(new [] {TokenType.Multiplication, TokenType.Division, TokenType.Modulo}))
@@ -333,7 +328,7 @@ namespace Interpreter.ParserModule
                 var type = _lexer.CurrentToken.TokenType;
                 if (!TryToParseNegationExpression(out var right))
                     throw new Exception("");
-                left = new MultiplicativeExpression(TokenTypeToMultiplicativeExpressionType.Map[type], left, right);
+                expression = new MultiplicativeExpression(TokenTypeToMultiplicativeExpressionType.Map[type], expression, right);
             }
 
             return true;
@@ -341,18 +336,17 @@ namespace Interpreter.ParserModule
 
         private bool TryToParseNegationExpression(out IExpression expression)
         {
-            expression = null;
             var isNegated = Preview(TokenType.Not);
-
-            if (!TryToParseLiteral(out var factor) && !TryToParseBracketExpression(out factor) && !TryToParseIdentifierExpression(out factor))
+            if (!TryToParseLiteral(out expression) && !TryToParseBracketExpression(out expression) && !TryToParseIdentifierExpression(out expression))
                 return false;
-            expression = new NotExpression(isNegated, factor);
+            if (isNegated) 
+                expression = new NotExpression(expression);
+
             return true;
         }
 
         private bool TryToParseLiteral(out IExpression expression)
         {
-            expression = null;
             return TryToParseIntLiteral(out expression) || TryToParseBoolLiteral(out expression) || TryToParseStringLiteral(out expression);
         }
 
@@ -375,7 +369,7 @@ namespace Interpreter.ParserModule
             expression = null;
             if (!Preview(TokenType.BoolLiteral))
                 return false;
-            expression = new BoolLiteral(_lexer.CurrentToken.Lexeme == "true");
+            expression = new BoolLiteral(bool.Parse(_lexer.CurrentToken.Lexeme));
             return true;
         }
 
@@ -411,7 +405,7 @@ namespace Interpreter.ParserModule
             {
                 var arguments = ParseArguments();
                 MustBe(TokenType.RoundCloseBracket);
-                expression = new FunctionCall(token.Lexeme, arguments);
+                expression = new FunctionCallExpression(token.Lexeme, arguments);
                 return true;
             }
 
@@ -421,16 +415,16 @@ namespace Interpreter.ParserModule
                 var name = _lexer.CurrentToken.Lexeme;
                 if (!Preview(TokenType.RoundOpenBracket))
                 {
-                    expression = new PropertyCall(token.Lexeme, name);
+                    expression = new PropertyCallExpression(token.Lexeme, name);
                     return true;
                 }
                 var arguments = ParseArguments();
                 MustBe(TokenType.RoundCloseBracket);
-                expression = new MethodCall(token.Lexeme, new FunctionCall(name, arguments));
+                expression = new MethodCallExpression(token.Lexeme, new FunctionCall(name, arguments));
                 return true;
             }
 
-            expression = new Variable(token.Lexeme);
+            expression = new VariableExpression(token.Lexeme);
             return true;
         }
 

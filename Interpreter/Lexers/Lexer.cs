@@ -1,6 +1,6 @@
 ﻿using System.Text;
 using Interpreter.Extensions;
-using Interpreter.Maps;
+using Interpreter.Lexers.Maps;
 using Interpreter.SourceCodeReader;
 using Interpreter.Tokens;
 
@@ -100,7 +100,8 @@ namespace Interpreter.Lexers
 
             void HandleComment()
             {
-                while (!_symbol.IsEndOfLine()) _symbol = GetNextSymbol();
+                while (!_symbol.IsEndOfLine()) 
+                    _symbol = GetNextSymbol();
             }
 
             void HandleEndOfLine()

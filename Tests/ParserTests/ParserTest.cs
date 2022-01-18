@@ -9,7 +9,7 @@ namespace Tests.ParserTests
     public class ParserTest
     {
         [Theory]
-        [InlineData("program { def void Print(bool a) { } }")]
+        [InlineData("program { def void Function(bool a) { } }")]
         public void BaseFunctionDefinitionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
@@ -21,7 +21,7 @@ namespace Tests.ParserTests
             Assert.Single(program.Functions);
             var function = program.Functions.ToList().Single().Value;
             Assert.Equal("void", function.Type);
-            Assert.Equal("Print", function.Name);
+            Assert.Equal("Function", function.Name);
             Assert.Single(function.Parameters);
             var parameter = function.Parameters.Single();
             Assert.Equal("a", parameter.Name);

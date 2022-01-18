@@ -1,7 +1,7 @@
-﻿using Interpreter.Tokens;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using Interpreter.Tokens;
 
-namespace Interpreter.Maps
+namespace Interpreter.Lexers.Maps
 {
     public static class SingleSignToTokenTypeMap
     {

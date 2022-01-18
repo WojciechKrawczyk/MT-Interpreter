@@ -1,9 +1,8 @@
-﻿using System;
+﻿/*using System;
 using System.Collections.Generic;
 using System.Linq;
 using Interpreter.Errors;
 using Interpreter.ParserModule;
-using Interpreter.ParserModule.Structures;
 using Interpreter.ParserModule.Structures.Definitions;
 using Interpreter.ParserModule.Structures.Expressions;
 using Interpreter.ParserModule.Structures.Expressions.Literals;
@@ -117,10 +116,36 @@ namespace Interpreter.SemanticValidator
 
         private void ValidateClassBody(ClassDefinition classDefinition)
         {
-            
+            var scopeContext = new ScopeContext();
+            foreach (var property in classDefinition.Properties.Values)
+            {
+                if (!BuiltTypes.Exists(x => x == property.Type) && !_definedClasses.ContainsKey(property.Type))
+                {
+                    ErrorsHandler.HandleError($"ERROR: Declaration property '{property.Name}' of unknown type '{property.Type}' in class '{classDefinition.Name}' definition");
+                }
+                if (scopeContext.HasVariable(property.Name))
+                {
+                    ErrorsHandler.HandleError($"ERROR: Redefinition of property '{property.Name} in class '{classDefinition.Name}' definition");
+                }
+                if (property.Value == null)
+                {
+                    return;
+                }
+                var expressionType = DetermineExpressionType(scopeContext, property.Value);
+                if (property.Type != expressionType)
+                {
+                    ErrorsHandler.HandleError($"ERROR: Unable assign expression with type '{expressionType}' to property '{property.Name}' with type '{property.Type}' in class '{classDefinition.Name}' definition");
+                }
+                scopeContext.TryAddVariable(new DefinedVariable(property.Type, property.Name, true));
+            }
+            var classFunctions = new Dictionary<string, DefinedFunction>();
+            //konstruktor
+            //funkcje
+            //dostępne te z std lib
+            //calos funkcji
         }
 
-        private void ValidateInstructions(ScopeContext scopeContext, IEnumerable<Instruction> instructions)
+        private void ValidateInstructions(ScopeContext scopeContext, IEnumerable<IInstruction> instructions)
         {
             foreach (var instruction in instructions)
             {
@@ -135,7 +160,7 @@ namespace Interpreter.SemanticValidator
                 {
                     var assignment = (Assignment) instruction;
                     ValidateAssignment(scopeContext, assignment);
-                    scopeContext.SetVariableInitialized(assignment.Variable.Name);
+                    scopeContext.SetVariableInitialized(assignment.VariableName);
                 }
                 else if (instructionType == typeof(FunctionCall))
                 {
@@ -200,9 +225,9 @@ namespace Interpreter.SemanticValidator
 
         private void ValidateAssignment(ScopeContext scopeContext, Assignment assignment)
         {
-            if (!scopeContext.TryGetVariable(assignment.Variable.Name, out var variable))
+            if (!scopeContext.TryGetVariable(assignment.VariableName, out var variable))
             {
-                ErrorsHandler.HandleError($"ERROR: Assignment to undefined variable '{variable.Name}'");
+                ErrorsHandler.HandleError($"ERROR: Assignment to undefined variable '{assignment.VariableName}'");
             }
             var expressionType = DetermineExpressionType(scopeContext, assignment.Expression);
             if (variable.Type != expressionType)
@@ -219,7 +244,7 @@ namespace Interpreter.SemanticValidator
                 ErrorsHandler.HandleError($"ERROR: Condition expression has to have '{BuiltTypesNames.Bool}' type");
             }
             ValidateInstructions(scopeContext, ifInstruction.BaseInstructions);
-            ValidateInstructions(scopeContext, ifInstruction.BaseInstructions);
+            ValidateInstructions(scopeContext, ifInstruction.ElseInstructions);
         }
 
         private void ValidateWhileInstruction(ScopeContext scopeContext, WhileInstruction whileInstruction)
@@ -256,15 +281,15 @@ namespace Interpreter.SemanticValidator
                 scopeContext.TryGetVariable(methodCall.ObjectName, out var variable);
                 return _definedClasses[variable.Type].Functions[methodCall.Function.Name].Type;
             }
-            if (expressionType == typeof(PropertyCall))
+            if (expressionType == typeof(PropertyCallExpression))
             {
-                var propertyCall = (PropertyCall) expression;
+                var propertyCall = (PropertyCallExpression) expression;
                 scopeContext.TryGetVariable(propertyCall.ObjectName, out var variable);
                 return _definedClasses[variable.Type].Properties[propertyCall.PropertyName].Type;
             }
-            if (expressionType == typeof(Variable))
+            if (expressionType == typeof(VariableExpression))
             {
-                var variableCall = (Variable) expression;
+                var variableCall = (VariableExpression) expression;
                 scopeContext.TryGetVariable(variableCall.Name, out var variable);
                 return variable.Type;
             }
@@ -286,10 +311,10 @@ namespace Interpreter.SemanticValidator
                 ValidateFunctionCall(scopeContext, (FunctionCall) expression);
             else if (expressionType == typeof(MethodCall))
                 ValidateMethodCall(scopeContext, (MethodCall) expression);
-            else if (expressionType == typeof(PropertyCall))
-                ValidatePropertyCall(scopeContext, (PropertyCall) expression);
-            else if (expressionType == typeof(Variable))
-                ValidateVariable(scopeContext, (Variable) expression);
+            else if (expressionType == typeof(PropertyCallExpression))
+                ValidatePropertyCall(scopeContext, (PropertyCallExpression) expression);
+            else if (expressionType == typeof(VariableExpression))
+                ValidateVariable(scopeContext, (VariableExpression) expression);
             else if (expressionType == typeof(MultiplicativeExpression))
                 ValidateMultiplicativeExpression(scopeContext, (MultiplicativeExpression) expression);
             else if (expressionType == typeof(AdditiveExpression))
@@ -372,38 +397,38 @@ namespace Interpreter.SemanticValidator
             }
         }
 
-        private void ValidatePropertyCall(ScopeContext scopeContext, PropertyCall propertyCall)
+        private void ValidatePropertyCall(ScopeContext scopeContext, PropertyCallExpression propertyCallExpression)
         {
-            if (!scopeContext.TryGetVariable(propertyCall.ObjectName, out var objectVariable))
+            if (!scopeContext.TryGetVariable(propertyCallExpression.ObjectName, out var objectVariable))
             {
-                ErrorsHandler.HandleError($"ERROR: Use of undefined variable {propertyCall.ObjectName}");
+                ErrorsHandler.HandleError($"ERROR: Use of undefined variable {propertyCallExpression.ObjectName}");
             }
             if (BuiltTypes.Contains(objectVariable.Type))
             {
                 ErrorsHandler.HandleError($"ERROR: Variable '{objectVariable.Name}' has no complex type");
             }
             var variableClass = _definedClasses[objectVariable.Type];
-            if (!variableClass.Properties.ContainsKey(propertyCall.PropertyName))
+            if (!variableClass.Properties.ContainsKey(propertyCallExpression.PropertyName))
             {
-                ErrorsHandler.HandleError($"ERROR: Can not resolve property '{propertyCall.PropertyName}' for variable '{objectVariable.Name}' with type '{objectVariable.Type}");
+                ErrorsHandler.HandleError($"ERROR: Can not resolve property '{propertyCallExpression.PropertyName}' for variable '{objectVariable.Name}' with type '{objectVariable.Type}");
             }
         }
 
-        private void ValidateVariable(ScopeContext scopeContext, Variable variable)
+        private void ValidateVariable(ScopeContext scopeContext, VariableExpression variableExpression)
         {
-            if (!scopeContext.TryGetVariable(variable.Name, out var variableFromContext))
+            if (!scopeContext.TryGetVariable(variableExpression.Name, out var variableFromContext))
             {
-                ErrorsHandler.HandleError($"ERROR: Usage of undefined variable '{variable.Name}'");
+                ErrorsHandler.HandleError($"ERROR: Usage of undefined variable '{variableExpression.Name}'");
             }
             if (!variableFromContext.IsInitialized)
             {
-                ErrorsHandler.HandleError($"ERROR: Usage of uninitialized variable '{variable.Name}'");
+                ErrorsHandler.HandleError($"ERROR: Usage of uninitialized variable '{variableExpression.Name}'");
             }
         }
 
         private void ValidateAdditiveExpression(ScopeContext scopeContext, AdditiveExpression additiveExpression)
         {
-            var (leftType rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, additiveExpression);
+            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, additiveExpression);
             if (leftType != BuiltTypesNames.Int || rightType != BuiltTypesNames.Int)
             {
                 ErrorsHandler.HandleError($"Can not apply operator '{AdditiveExpressionTypeToOperator.Map[additiveExpression.Type]}' to operands of type '{leftType}' and '{rightType}'");
@@ -412,7 +437,7 @@ namespace Interpreter.SemanticValidator
 
         private void ValidateMultiplicativeExpression(ScopeContext scopeContext, MultiplicativeExpression multiplicativeExpression)
         {
-            var (leftType rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, multiplicativeExpression);
+            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, multiplicativeExpression);
             if (leftType != BuiltTypesNames.Int || rightType != BuiltTypesNames.Int)
             {
                 ErrorsHandler.HandleError($"Can not apply operator '{MultiplicativeExpressionTypeToOperator.Map[multiplicativeExpression.Type]}' to operands of type '{leftType}' and '{rightType}'");
@@ -421,7 +446,7 @@ namespace Interpreter.SemanticValidator
 
         private void ValidateRelativeExpression(ScopeContext scopeContext, RelativeExpression relativeExpression)
         {
-            var (leftType rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, relativeExpression);
+            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, relativeExpression);
             if (leftType != rightType 
                 || (leftType != BuiltTypesNames.Bool && leftType != BuiltTypesNames.Int) 
                 || (leftType == BuiltTypesNames.Bool && (relativeExpression.Type != RelativeExpressionType.Equal && relativeExpression.Type != RelativeExpressionType.NotEqual)))
@@ -432,7 +457,7 @@ namespace Interpreter.SemanticValidator
 
         private void ValidateAndExpression(ScopeContext scopeContext, AndExpression andExpression)
         {
-            var (leftType rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, andExpression);
+            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, andExpression);
             if (leftType != BuiltTypesNames.Bool || rightType != BuiltTypesNames.Bool)
             {
                 ErrorsHandler.HandleError($"Can not apply operator 'and' to operands of type '{leftType}' and '{rightType}'");
@@ -441,7 +466,7 @@ namespace Interpreter.SemanticValidator
 
         private void ValidateOrExpression(ScopeContext scopeContext, OrExpression orExpression)
         {
-            var (leftType rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, orExpression);
+            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, orExpression);
             if (leftType != BuiltTypesNames.Bool || rightType != BuiltTypesNames.Bool)
             {
                 ErrorsHandler.HandleError($"Can not apply operator 'or' to operands of type '{leftType}' and '{rightType}'");
@@ -458,7 +483,7 @@ namespace Interpreter.SemanticValidator
             }
         }
 
-        private (string leftExpressionType, string rightExpressionType) ValidateAndGetInnerExpressionsTypes(ScopeContext scopeContext, Expression expression)
+        private (string leftExpressionType, string rightExpressionType) ValidateAndGetInnerExpressionsTypes(ScopeContext scopeContext, IOperatorExpression expression)
         {
             ValidateExpression(scopeContext, expression.Left);
             ValidateExpression(scopeContext, expression.Right);
@@ -467,4 +492,4 @@ namespace Interpreter.SemanticValidator
             return (leftType, rightType);
         }
     }
-}
+}*/

@@ -1,4 +1,6 @@
-﻿namespace Interpreter.ParserModule.Structures.Expressions.Literals
+﻿using Interpreter.SemanticValidator;
+
+namespace Interpreter.ParserModule.Structures.Expressions.Literals
 {
     public class IntLiteral : IExpression
     {
@@ -8,5 +10,8 @@
         {
             Value = value;
         }
+
+        public string Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitIntLiteralExpression(this, scopeContext);
     }
 }

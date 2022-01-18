@@ -1,12 +1,18 @@
-﻿namespace Interpreter.ParserModule.Structures.Expressions
-{
-    public class NotExpression : Expression
-    {
-        public bool IsNegated { get; }
+﻿using Interpreter.SemanticValidator;
 
-        public NotExpression(bool isNegated, IExpression expression) : base(expression, null)
+namespace Interpreter.ParserModule.Structures.Expressions
+{
+    public class NotExpression : IOperatorExpression, IExpression
+    {
+        public IExpression Left { get; }
+        public IExpression Right { get; }
+
+        public NotExpression(IExpression expression)
         {
-            IsNegated = isNegated;
+            Left = expression;
+            Right = null;
         }
+        public string Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
+            structuresVisitor.VisitNotExpression(this, scopeContext);
     }
 }
