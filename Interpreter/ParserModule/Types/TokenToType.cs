@@ -12,13 +12,9 @@ namespace Interpreter.ParserModule.Types
             {"Void", "void"}
         };
 
-        public static string Map(Token token)
-        {
-            var tokenTypeName = token.TokenType.ToString();
-            if (_map.TryGetValue(tokenTypeName, out var type)) 
-                return type;
-            _map.Add(tokenTypeName, tokenTypeName);
-            return tokenTypeName;
-        }
+        public static string Map(Token token) => 
+            _map.TryGetValue(token.TokenType.ToString(), out var type) 
+                ? type 
+                : token.Lexeme;
     }
 }

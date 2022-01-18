@@ -367,10 +367,17 @@ namespace Interpreter.ParserModule
         private bool TryToParseBoolLiteral(out IExpression expression)
         {
             expression = null;
-            if (!Preview(TokenType.BoolLiteral))
-                return false;
-            expression = new BoolLiteral(bool.Parse(_lexer.CurrentToken.Lexeme));
-            return true;
+            if (Preview(TokenType.False))
+            {
+                expression = new BoolLiteral(false);
+                return true;
+            }
+            if (Preview(TokenType.True))
+            {
+                expression = new BoolLiteral(true);
+                return true;
+            }
+            return false;
         }
 
         private bool TryToParseStringLiteral(out IExpression expression)
@@ -500,7 +507,7 @@ namespace Interpreter.ParserModule
                 isBool = TryToParseBoolLiteral(out literal);
             if (!isInt && !isBool)
                 throw new Exception("");
-            var assignType =  TokenToType.Map(_lexer.CurrentToken);
+            var assignType = isInt ? "int" : "bool";
             if (type != assignType)
                 throw new Exception("");
             

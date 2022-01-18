@@ -44,7 +44,7 @@
 
         //literals
         IntLiteral,
-        BoolLiteral,
+        //BoolLiteral,
         StringLiteral,
 
         //others
