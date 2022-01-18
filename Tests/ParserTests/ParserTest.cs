@@ -325,5 +325,52 @@ namespace Tests.ParserTests
             Assert.NotNull(returnInstruction.ToReturn);
             Assert.Equal(typeof(MultiplicativeExpression), returnInstruction.ToReturn.GetType());
         }
+        
+        [Theory]
+        [InlineData("program { def void Function() { bool a = false and true; bool b = false or true; bool c = not a; int d = 1 + 3; int e = 2 * 4; bool f = 3 < 4; } }")]
+        public void ExpressionsTest(string sourceCode)
+        {
+            var reader = new StringSourceCodeReader(sourceCode);
+            var lexer = new Lexer(reader);
+            var parser = new Parser(lexer);
+            var success = parser.TryToParseProgram(out var program);
+            Assert.True(success);
+            Assert.Empty(program.Classes);
+            Assert.Single(program.Functions);
+            var function = program.Functions.ToList().Single().Value;
+            Assert.Equal("void", function.Type);
+            Assert.Equal("Function", function.Name);
+            Assert.Empty(function.Parameters);
+
+            var instruction1 = function.Instructions.ElementAt(0);
+            Assert.Equal(typeof(VarDeclaration), instruction1.GetType());
+            var varDeclaration1 = (VarDeclaration) instruction1;
+            Assert.Equal(typeof(AndExpression), varDeclaration1.Value.GetType());
+
+            var instruction2 = function.Instructions.ElementAt(1);
+            Assert.Equal(typeof(VarDeclaration), instruction2.GetType());
+            var varDeclaration2 = (VarDeclaration) instruction2;
+            Assert.Equal(typeof(OrExpression), varDeclaration2.Value.GetType());
+
+            var instruction3 = function.Instructions.ElementAt(2);
+            Assert.Equal(typeof(VarDeclaration), instruction3.GetType());
+            var varDeclaration3 = (VarDeclaration) instruction3;
+            Assert.Equal(typeof(NotExpression), varDeclaration3.Value.GetType());
+            
+            var instruction4 = function.Instructions.ElementAt(3);
+            Assert.Equal(typeof(VarDeclaration), instruction4.GetType());
+            var varDeclaration4 = (VarDeclaration) instruction4;
+            Assert.Equal(typeof(AdditiveExpression), varDeclaration4.Value.GetType());
+            
+            var instruction5 = function.Instructions.ElementAt(4);
+            Assert.Equal(typeof(VarDeclaration), instruction5.GetType());
+            var varDeclaration5 = (VarDeclaration) instruction5;
+            Assert.Equal(typeof(MultiplicativeExpression), varDeclaration5.Value.GetType());
+            
+            var instruction6 = function.Instructions.ElementAt(5);
+            Assert.Equal(typeof(VarDeclaration), instruction6.GetType());
+            var varDeclaration6 = (VarDeclaration) instruction6;
+            Assert.Equal(typeof(RelativeExpression), varDeclaration6.Value.GetType());
+        }
     }
 }
