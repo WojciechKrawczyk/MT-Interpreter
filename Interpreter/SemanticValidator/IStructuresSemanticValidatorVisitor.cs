@@ -4,7 +4,7 @@ using Interpreter.ParserModule.Structures.Instructions;
 
 namespace Interpreter.SemanticValidator
 {
-    public interface IStructuresVisitor
+    public interface IStructuresSemanticValidatorVisitor
     {
         public void VisitVarDeclarationInstruction(VarDeclaration varDeclaration, ScopeContext scopeContext);
         public void VisitAssignmentInstruction(Assignment assignment, ScopeContext scopeContext);

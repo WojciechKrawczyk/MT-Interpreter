@@ -1,9 +1,12 @@
-﻿using Interpreter.SemanticValidator;
+﻿using Interpreter.Executor;
+using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Instructions
 {
     public interface IInstruction : INode
     {
-        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext);
+        public void AcceptSemanticValidator(IStructuresSemanticValidatorVisitor structuresSemanticValidatorVisitor, ScopeContext scopeContext);
+
+        public void AcceptExecutor(IStructuresExecutorVisitor structuresExecutorVisitor, ExecutableScopeContext executableScopeContext);
     }
 }

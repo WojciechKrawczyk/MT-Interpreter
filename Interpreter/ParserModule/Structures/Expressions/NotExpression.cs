@@ -1,4 +1,6 @@
-﻿using Interpreter.SemanticValidator;
+﻿using System.Reflection.Metadata;
+using Interpreter.Executor;
+using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Expressions
 {
@@ -12,7 +14,10 @@ namespace Interpreter.ParserModule.Structures.Expressions
             Left = expression;
             Right = null;
         }
-        public string Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
-            structuresVisitor.VisitNotExpression(this, scopeContext);
+        public string AcceptSemanticValidator(IStructuresSemanticValidatorVisitor structuresSemanticValidatorVisitor, ScopeContext scopeContext) => 
+            structuresSemanticValidatorVisitor.VisitNotExpression(this, scopeContext);
+
+        public ExecutableVariable AcceptExecutor(IStructuresExecutorVisitor structuresExecutorVisitor, ExecutableScopeContext executableScopeContext) =>
+            structuresExecutorVisitor.VisitNotExpression(this, executableScopeContext);
     }
 }

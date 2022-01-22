@@ -1,4 +1,5 @@
-﻿using Interpreter.ParserModule.Structures.Expressions;
+﻿using Interpreter.Executor;
+using Interpreter.ParserModule.Structures.Expressions;
 using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Instructions
@@ -12,7 +13,10 @@ namespace Interpreter.ParserModule.Structures.Instructions
             ToReturn = toReturn;
         }
 
-        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
-            structuresVisitor.VisitReturnInstruction(this, scopeContext);
+        public void AcceptSemanticValidator(IStructuresSemanticValidatorVisitor structuresSemanticValidatorVisitor, ScopeContext scopeContext) => 
+            structuresSemanticValidatorVisitor.VisitReturnInstruction(this, scopeContext);
+
+        public void AcceptExecutor(IStructuresExecutorVisitor structuresExecutorVisitor, ExecutableScopeContext executableScopeContext) =>
+            structuresExecutorVisitor.VisitReturnInstruction(this, executableScopeContext);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Interpreter.Executor;
 using Interpreter.ParserModule.Structures.Expressions;
 using Interpreter.SemanticValidator;
 
@@ -15,7 +16,10 @@ namespace Interpreter.ParserModule.Structures.Instructions
             Arguments = arguments;
         }
 
-        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
-            structuresVisitor.VisitFunctionCallInstruction(this, scopeContext);
+        public void AcceptSemanticValidator(IStructuresSemanticValidatorVisitor structuresSemanticValidatorVisitor, ScopeContext scopeContext) => 
+            structuresSemanticValidatorVisitor.VisitFunctionCallInstruction(this, scopeContext);
+
+        public void AcceptExecutor(IStructuresExecutorVisitor structuresExecutorVisitor, ExecutableScopeContext executableScopeContext) => 
+            structuresExecutorVisitor.VisitFunctionCallInstruction(this, executableScopeContext);
     }
 }

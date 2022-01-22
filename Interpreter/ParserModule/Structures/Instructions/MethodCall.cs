@@ -1,4 +1,5 @@
-﻿using Interpreter.SemanticValidator;
+﻿using Interpreter.Executor;
+using Interpreter.SemanticValidator;
 
 namespace Interpreter.ParserModule.Structures.Instructions
 {
@@ -13,7 +14,10 @@ namespace Interpreter.ParserModule.Structures.Instructions
             Function = function;
         }
 
-        public void Accept(IStructuresVisitor structuresVisitor, ScopeContext scopeContext) => 
-            structuresVisitor.VisitMethodCallInstruction(this, scopeContext);
+        public void AcceptSemanticValidator(IStructuresSemanticValidatorVisitor structuresSemanticValidatorVisitor, ScopeContext scopeContext) => 
+            structuresSemanticValidatorVisitor.VisitMethodCallInstruction(this, scopeContext);
+
+        public void AcceptExecutor(IStructuresExecutorVisitor structuresExecutorVisitor, ExecutableScopeContext executableScopeContext) =>
+            structuresExecutorVisitor.VisitMethodCallInstruction(this, executableScopeContext);
     }
 }

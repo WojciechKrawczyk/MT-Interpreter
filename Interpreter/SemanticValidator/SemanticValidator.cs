@@ -1,4 +1,4 @@
-﻿/*using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Interpreter.Errors;
@@ -12,484 +12,416 @@ using Interpreter.SemanticValidator.Maps;
 
 namespace Interpreter.SemanticValidator
 {
-    public class SemanticValidator
+    public class SemanticValidator : IStructuresSemanticValidatorVisitor
     {
-        private static class BuiltTypesNames
+        private static class BuiltStandardTypesNames
         {
             public const string Int = "int";
             public const string Bool = "bool";
-            public const string Void = "void";
+            public const string String = "string";
         }
 
-        private static readonly List<string> BuiltTypes = new(){"int", "bool"};
+        private static class BuiltSpecialFunctionsTypesNames
+        {
+            public const string Void = "void";
+        }
+        
         private const string MainFunctionName = "Main";
-        private ProgramInstance _programInstance;
+        private const string UndefinedType = "undefined";
+
         private Dictionary<string, DefinedClass> _definedClasses;
         private Dictionary<string, DefinedFunction> _definedFunctions;
-        private Dictionary<string, DefinedFunction> _stdFunctions = new();
+        private Dictionary<string, DefinedFunction> _stdFunctions;
         private string _currentFunctionType;
 
-        public void ValidateProgramInstance(ProgramInstance programInstance)
+        private bool IsTypeDefined(string type) => 
+            type is BuiltStandardTypesNames.Int or BuiltStandardTypesNames.Bool || _definedClasses.ContainsKey(type);
+
+        public void ValidateProgram(ProgramInstance programInstance)
         {
-            _programInstance = programInstance;
             _definedClasses = new Dictionary<string, DefinedClass>();
             _definedFunctions = new Dictionary<string, DefinedFunction>();
 
-            ValidateClassDefinitions();
-            ValidateFunctionDefinitions();
+            foreach (var classDefinition in programInstance.Classes.Values)
+            {
+                ValidateClassDefinitionHeader(classDefinition);
+            }
+            foreach (var functionDefinition in programInstance.Functions.Values)
+            {
+                ValidateFunctionDefinitionHeader(functionDefinition);
+            }
             ValidateMainFunction();
-            foreach (var definedClass in _definedClasses.Values)
+            foreach (var function in _definedFunctions.Values)
             {
-                ValidateClassBody(definedClass);
+                _currentFunctionType = function.Type;
+                var scopeContext = new ScopeContext(function.ScopeContext)
+                {
+                    DefinedFunctions = _definedFunctions
+                };
+                ValidateInstructionsBlock(scopeContext, function.Instructions);
             }
-            foreach (var definedFunction in _definedFunctions.Values)
-            {
-                _currentFunctionType = definedFunction.Type;
-                ValidateInstructions(definedFunction.ScopeContext, definedFunction.Instructions);
-            }
+            //classes
         }
 
-        private void ValidateClassDefinitions()
+        private void ValidateClassDefinitionHeader(ClassDefinition classDefinition)
         {
-            foreach (var classDefinition in _programInstance.Classes.Values)
-            {
-                if (_definedClasses.ContainsKey(classDefinition.Name))
-                {
-                    ErrorsHandler.HandleError($"ERROR: Redefinition of class '{classDefinition.Name}'");
-                }
-                if (classDefinition.Name == MainFunctionName)
-                {
-                    ErrorsHandler.HandleError($"ERROR: Class can not have name '{MainFunctionName}'");
-                }
-                _definedClasses.Add(classDefinition.Name, new DefinedClass(classDefinition, new ScopeContext()));
-            }
-        }
+            if (_definedClasses.ContainsKey(classDefinition.Name))
+                ErrorsHandler.HandleError($"ERROR: Redefinition of class '{classDefinition.Name}'");
 
-        private void ValidateFunctionDefinitions()
+            if (classDefinition.Name == MainFunctionName)
+                ErrorsHandler.HandleError($"ERROR: Class can not be declared with name '{MainFunctionName}'");
+
+            _definedClasses.Add(classDefinition.Name, new DefinedClass(classDefinition, new ScopeContext()));
+        }
+        
+        private void ValidateFunctionDefinitionHeader(FunctionDefinition functionDefinition)
         {
-            foreach (var functionDefinition in _programInstance.Functions.Values)
+            if (!IsTypeDefined(functionDefinition.Type) && functionDefinition.Type != BuiltSpecialFunctionsTypesNames.Void)
+                ErrorsHandler.HandleError($"ERROR: Unknown type '{functionDefinition.Type}' in function {functionDefinition.Name} definition");
+
+            if (_definedClasses.ContainsKey(functionDefinition.Name))
+                ErrorsHandler.HandleError($"ERROR: Function '{functionDefinition.Name}' conflicts with already defined class '{functionDefinition.Name}'");
+
+            if (_definedFunctions.ContainsKey(functionDefinition.Name))
+                ErrorsHandler.HandleError($"ERROR: Redefinition of function '{functionDefinition.Name}'");
+
+            if (_stdFunctions.ContainsKey(functionDefinition.Name))
+                ErrorsHandler.HandleError($"ERROR: Redefinition of standard lib function '{functionDefinition.Name}'");
+
+            var scopeContext = new ScopeContext();
+            foreach (var parameter in functionDefinition.Parameters)
             {
-                if (!BuiltTypes.Exists(x => x == functionDefinition.Type) && !_definedClasses.ContainsKey(functionDefinition.Type) && functionDefinition.Type != "void")
-                {
-                    ErrorsHandler.HandleError($"ERROR: Unknown type '{functionDefinition.Type}' in function {functionDefinition.Name} definition");
-                }
-                if (_definedClasses.ContainsKey(functionDefinition.Name))
-                {
-                    ErrorsHandler.HandleError($"ERROR: Function '{functionDefinition.Name}' conflicts with already defined class '{functionDefinition.Name}'");
-                }
-                if (_definedFunctions.ContainsKey(functionDefinition.Name))
-                {
-                    ErrorsHandler.HandleError($"ERROR: Redefinition of function '{functionDefinition.Name}'");
-                }
-                if (_stdFunctions.ContainsKey(functionDefinition.Name))
-                {
-                    ErrorsHandler.HandleError($"ERROR: Redefinition of standard function '{functionDefinition.Name}'");
-                }
-                var scopeContext = new ScopeContext();
-                foreach (var parameter in functionDefinition.Parameters)
-                {
-                    if (!BuiltTypes.Exists(x => x == parameter.Type) && !_definedClasses.ContainsKey(parameter.Type))
-                    {
-                        ErrorsHandler.HandleError($"ERROR: Unknown type '{parameter.Type}' for '{parameter.Name}' argument in function {functionDefinition.Name} definition");
-                    }
-                    if (scopeContext.HasVariable(parameter.Name))
-                    {
-                        ErrorsHandler.HandleError($"ERROR: Redefinition of parameter '{parameter.Name} in function '{functionDefinition.Name}' definition");
-                    }
-                    scopeContext.TryAddVariable(new DefinedVariable(parameter.Type, parameter.Name, true));
-                }
-                _definedFunctions.Add(functionDefinition.Name, new DefinedFunction(functionDefinition, scopeContext));
+                if (!IsTypeDefined(parameter.Type))
+                    ErrorsHandler.HandleError($"ERROR: Unknown type '{parameter.Type}' for '{parameter.Name}' parameter in function {functionDefinition.Name} definition");
+
+                if (!scopeContext.DefinedVariables.TryAdd(parameter.Name, new DefinedVariable(parameter.Type, parameter.Name, true)))
+                    ErrorsHandler.HandleError($"ERROR: Redefinition of parameter '{parameter.Name} in function '{functionDefinition.Name}' definition");
             }
+            _definedFunctions.Add(functionDefinition.Name, new DefinedFunction(functionDefinition, scopeContext));
         }
 
         private void ValidateMainFunction()
         {
-            if (!_definedFunctions.ContainsKey("Main"))
-            {
-                ErrorsHandler.HandleError($"ERROR: No 'Main' function is defined");
-            }
-            if (_definedFunctions.First(x => x.Key == "Main").Value.Parameters.Any())
-            {
-                ErrorsHandler.HandleError($"ERROR: Function 'Main' can not have parameters");
-            }
+            if (!_definedFunctions.TryGetValue(MainFunctionName, out var mainFunction))
+                ErrorsHandler.HandleError($"ERROR: No '{MainFunctionName}' function is defined");
+
+            if (mainFunction != null && mainFunction.Parameters.Any())
+                ErrorsHandler.HandleError($"ERROR: Function '{MainFunctionName} can not have parameters");
         }
 
-        private void ValidateClassBody(ClassDefinition classDefinition)
-        {
-            var scopeContext = new ScopeContext();
-            foreach (var property in classDefinition.Properties.Values)
-            {
-                if (!BuiltTypes.Exists(x => x == property.Type) && !_definedClasses.ContainsKey(property.Type))
-                {
-                    ErrorsHandler.HandleError($"ERROR: Declaration property '{property.Name}' of unknown type '{property.Type}' in class '{classDefinition.Name}' definition");
-                }
-                if (scopeContext.HasVariable(property.Name))
-                {
-                    ErrorsHandler.HandleError($"ERROR: Redefinition of property '{property.Name} in class '{classDefinition.Name}' definition");
-                }
-                if (property.Value == null)
-                {
-                    return;
-                }
-                var expressionType = DetermineExpressionType(scopeContext, property.Value);
-                if (property.Type != expressionType)
-                {
-                    ErrorsHandler.HandleError($"ERROR: Unable assign expression with type '{expressionType}' to property '{property.Name}' with type '{property.Type}' in class '{classDefinition.Name}' definition");
-                }
-                scopeContext.TryAddVariable(new DefinedVariable(property.Type, property.Name, true));
-            }
-            var classFunctions = new Dictionary<string, DefinedFunction>();
-            //konstruktor
-            //funkcje
-            //dostępne te z std lib
-            //calos funkcji
-        }
-
-        private void ValidateInstructions(ScopeContext scopeContext, IEnumerable<IInstruction> instructions)
+        private void ValidateInstructionsBlock(ScopeContext scopeContext, IEnumerable<IInstruction> instructions)
         {
             foreach (var instruction in instructions)
             {
-                var instructionType = instruction.GetType();
-                if (instructionType == typeof(VarDeclaration))
-                {
-                    var varDeclaration = (VarDeclaration) instruction;
-                    ValidateVarDeclaration(scopeContext, varDeclaration);
-                    scopeContext.AddVariable(new DefinedVariable(varDeclaration.Type, varDeclaration.Name, varDeclaration.Value != null));
-                }
-                else if (instructionType == typeof(Assignment))
-                {
-                    var assignment = (Assignment) instruction;
-                    ValidateAssignment(scopeContext, assignment);
-                    scopeContext.SetVariableInitialized(assignment.VariableName);
-                }
-                else if (instructionType == typeof(FunctionCall))
-                {
-                    var functionCall = (FunctionCall) instruction;
-                    ValidateFunctionCall(scopeContext, functionCall);
-                    var functionType = _definedFunctions[functionCall.Name].Type;
-                    if (functionType != BuiltTypesNames.Void)
-                    {
-                        ErrorsHandler.HandleWarning($"WARNING: Return value from function '{functionCall.Name}' is not used");
-                    }
-                }
-                else if (instructionType == typeof(MethodCall))
-                {
-                    var methodCall = (MethodCall) instruction;
-                    ValidateMethodCall(scopeContext, methodCall);
-                    scopeContext.TryGetVariable(methodCall.ObjectName, out var variable);
-                    var methodType = _definedClasses[variable.Type].Functions[methodCall.Function.Name].Type;
-                    if (methodType != BuiltTypesNames.Void)
-                    {
-                        ErrorsHandler.HandleWarning($"WARNING: Return value from method '{methodCall.Function.Name}' call on object '{methodCall.ObjectName}' is not used");
-                    }
-                }
-                else if (instructionType == typeof(IfInstruction))
-                {
-                    var ifInstruction = (IfInstruction) instruction;
-                    ValidateIfInstruction(scopeContext, ifInstruction);
-                }
-                else if (instructionType == typeof(WhileInstruction))
-                {
-                    var whileInstruction = (WhileInstruction) instruction;
-                    ValidateWhileInstruction(scopeContext, whileInstruction);
-                }
-                else if (instructionType == typeof(ReturnInstruction))
-                {
-                    var returnInstruction = (ReturnInstruction) instruction;
-                    ValidateReturnInstruction(scopeContext, returnInstruction);
-                }
+                instruction.AcceptSemanticValidator(this, scopeContext);
             }
         }
 
-        private void ValidateVarDeclaration(ScopeContext scopeContext, VarDeclaration varDeclaration)
+        public void VisitVarDeclarationInstruction(VarDeclaration varDeclaration, ScopeContext scopeContext)
         {
-            if (!BuiltTypes.Exists(x => x == varDeclaration.Type) && !_definedClasses.ContainsKey(varDeclaration.Name))
-            {
+            if (!IsTypeDefined(varDeclaration.Type))
                 ErrorsHandler.HandleError($"ERROR: Declaration variable '{varDeclaration.Name}' of unknown type '{varDeclaration.Type}'");
-            }
-            if (!scopeContext.TryAddVariable(new DefinedVariable(varDeclaration.Type, varDeclaration.Name, varDeclaration.Value != null)))
-            {
+
+            if (!scopeContext.DefinedVariables.TryAdd(varDeclaration.Name, new DefinedVariable(varDeclaration.Type, varDeclaration.Name, varDeclaration.Value != null)))
                 ErrorsHandler.HandleError($"ERROR: Redeclaration of variable '{varDeclaration.Name}'");
-            }
+
             if (varDeclaration.Value == null)
-            {
                 return;
-            }
-            ValidateExpression(scopeContext, varDeclaration.Value);
-            var expressionType = DetermineExpressionType(scopeContext, varDeclaration.Value);
+
+            var expressionType = varDeclaration.Value.AcceptSemanticValidator(this, scopeContext);
             if (varDeclaration.Type != expressionType)
-            {
                 ErrorsHandler.HandleError($"ERROR: Unable assign expression with type '{expressionType}' to variable '{varDeclaration.Name}' with type '{varDeclaration.Type}'");
-            }
         }
 
-        private void ValidateAssignment(ScopeContext scopeContext, Assignment assignment)
+        public void VisitAssignmentInstruction(Assignment assignment, ScopeContext scopeContext)
         {
-            if (!scopeContext.TryGetVariable(assignment.VariableName, out var variable))
-            {
+            if (!scopeContext.DefinedVariables.TryGetValue(assignment.VariableName, out var variable))
                 ErrorsHandler.HandleError($"ERROR: Assignment to undefined variable '{assignment.VariableName}'");
-            }
-            var expressionType = DetermineExpressionType(scopeContext, assignment.Expression);
+            
+            if (variable == null)
+                return;
+
+            var expressionType = assignment.Expression.AcceptSemanticValidator(this, scopeContext);
             if (variable.Type != expressionType)
-            {
                 ErrorsHandler.HandleError($"ERROR: Unable assign expression with type '{expressionType}' to variable '{variable.Name}' with type '{variable.Type}'");
-            }
         }
 
-        private void ValidateIfInstruction(ScopeContext scopeContext, IfInstruction ifInstruction)
+        public void VisitFunctionCallInstruction(FunctionCall functionCall, ScopeContext scopeContext)
         {
-            ValidateExpression(scopeContext, ifInstruction.Condition);
-            if (DetermineExpressionType(scopeContext, ifInstruction.Condition) != BuiltTypesNames.Bool)
-            {
-                ErrorsHandler.HandleError($"ERROR: Condition expression has to have '{BuiltTypesNames.Bool}' type");
-            }
-            ValidateInstructions(scopeContext, ifInstruction.BaseInstructions);
-            ValidateInstructions(scopeContext, ifInstruction.ElseInstructions);
+            ValidateFunctionCall(functionCall, scopeContext);
+            var functionType = scopeContext.DefinedFunctions[functionCall.Name].Type;
+            if (functionType != BuiltSpecialFunctionsTypesNames.Void)
+                ErrorsHandler.HandleWarning($"WARNING: Return value from function '{functionCall.Name}' is not used");
         }
 
-        private void ValidateWhileInstruction(ScopeContext scopeContext, WhileInstruction whileInstruction)
+        public void VisitMethodCallInstruction(MethodCall methodCall, ScopeContext scopeContext)
         {
-            ValidateExpression(scopeContext, whileInstruction.Condition);
-            if (DetermineExpressionType(scopeContext, whileInstruction.Condition) != BuiltTypesNames.Bool)
-            {
-                ErrorsHandler.HandleError($"ERROR: Condition expression has to have '{BuiltTypesNames.Bool}' type");
-            }
-            ValidateInstructions(scopeContext, whileInstruction.Instructions);
+            ValidateMethodCall(methodCall, scopeContext);
+            var objectType = scopeContext.DefinedVariables[methodCall.ObjectName].Type;
+            var methodType = _definedClasses[objectType].Functions[methodCall.Function.Name].Type;
+            if (methodType != BuiltSpecialFunctionsTypesNames.Void)
+                ErrorsHandler.HandleWarning($"WARNING: Return value from method '{methodCall.Function.Name}' call on object '{methodCall.ObjectName}' is not used");
         }
 
-        private void ValidateReturnInstruction(ScopeContext scopeContext, ReturnInstruction returnInstruction)
+        public void VisitReturnInstruction(ReturnInstruction returnInstruction, ScopeContext scopeContext)
         {
-            ValidateExpression(scopeContext, returnInstruction.ToReturn);
-            var expressionType = DetermineExpressionType(scopeContext, returnInstruction.ToReturn);
+            var expressionType = returnInstruction.ToReturn == null ? BuiltSpecialFunctionsTypesNames.Void : returnInstruction.ToReturn.AcceptSemanticValidator(this, scopeContext);
             if (expressionType != _currentFunctionType)
-            {
                 ErrorsHandler.HandleError($"ERROR: Can not convert expression type '{expressionType}' to return type '{_currentFunctionType}'");
-            }
         }
 
-        private string DetermineExpressionType(ScopeContext scopeContext, IExpression expression)
+        public void VisitIfInstruction(IfInstruction ifInstruction, ScopeContext scopeContext)
         {
-            var expressionType = expression.GetType();
-            if (expressionType == typeof(FunctionCall))
-            {
-                var functionCall = (FunctionCall) expression;
-                return _definedFunctions[functionCall.Name].Type;
-            }
-            if (expressionType == typeof(MethodCall))
-            {
-                var methodCall = (MethodCall) expression;
-                scopeContext.TryGetVariable(methodCall.ObjectName, out var variable);
-                return _definedClasses[variable.Type].Functions[methodCall.Function.Name].Type;
-            }
-            if (expressionType == typeof(PropertyCallExpression))
-            {
-                var propertyCall = (PropertyCallExpression) expression;
-                scopeContext.TryGetVariable(propertyCall.ObjectName, out var variable);
-                return _definedClasses[variable.Type].Properties[propertyCall.PropertyName].Type;
-            }
-            if (expressionType == typeof(VariableExpression))
-            {
-                var variableCall = (VariableExpression) expression;
-                scopeContext.TryGetVariable(variableCall.Name, out var variable);
-                return variable.Type;
-            }
-            if (expressionType == typeof(MultiplicativeExpression) || expressionType == typeof(AdditiveExpression) || expressionType == typeof(IntLiteral))
-            {
-                return BuiltTypesNames.Int;
-            }
-            if (expressionType == typeof(AndExpression) || expressionType == typeof(OrExpression) || expressionType == typeof(NotExpression) || expressionType == typeof(RelativeExpression) || expressionType == typeof(BoolLiteral))
-            {
-                return BuiltTypesNames.Bool;
-            }
-            throw new Exception("Unable to determine expression type");
+            var conditionType = ifInstruction.Condition.AcceptSemanticValidator(this, scopeContext);
+            if (conditionType != BuiltStandardTypesNames.Bool)
+                ErrorsHandler.HandleError($"ERROR: Condition expression has to have '{BuiltStandardTypesNames.Bool}' type");
+            ValidateInstructionsBlock(new ScopeContext(scopeContext), ifInstruction.BaseInstructions);
+            ValidateInstructionsBlock(new ScopeContext(scopeContext), ifInstruction.ElseInstructions);
         }
 
-        private void ValidateExpression(ScopeContext scopeContext, IExpression expression)
+        public void VisitWhileInstruction(WhileInstruction whileInstruction, ScopeContext scopeContext)
         {
-            var expressionType = expression.GetType();
-            if (expressionType == typeof(FunctionCall))
-                ValidateFunctionCall(scopeContext, (FunctionCall) expression);
-            else if (expressionType == typeof(MethodCall))
-                ValidateMethodCall(scopeContext, (MethodCall) expression);
-            else if (expressionType == typeof(PropertyCallExpression))
-                ValidatePropertyCall(scopeContext, (PropertyCallExpression) expression);
-            else if (expressionType == typeof(VariableExpression))
-                ValidateVariable(scopeContext, (VariableExpression) expression);
-            else if (expressionType == typeof(MultiplicativeExpression))
-                ValidateMultiplicativeExpression(scopeContext, (MultiplicativeExpression) expression);
-            else if (expressionType == typeof(AdditiveExpression))
-                ValidateAdditiveExpression(scopeContext, (AdditiveExpression) expression);
-            else if (expressionType == typeof(RelativeExpression))
-                ValidateRelativeExpression(scopeContext, (RelativeExpression) expression);
-            else if (expressionType == typeof(AndExpression))
-                ValidateAndExpression(scopeContext, (AndExpression) expression);
-            else if (expressionType == typeof(OrExpression))
-                ValidateOrExpression(scopeContext, (OrExpression) expression);
-            else if (expressionType == typeof(NotExpression))
-                ValidateNotExpression(scopeContext, (NotExpression) expression);
+            var conditionType = whileInstruction.Condition.AcceptSemanticValidator(this, scopeContext);
+            if (conditionType != BuiltStandardTypesNames.Bool)
+                ErrorsHandler.HandleError($"ERROR: Condition expression has to have '{BuiltStandardTypesNames.Bool}' type");
+            ValidateInstructionsBlock(new ScopeContext(scopeContext), whileInstruction.Instructions);
         }
 
-        private void ValidateFunctionCall(ScopeContext scopeContext, FunctionCall functionCall)
+        public string VisitOrExpression(OrExpression orExpression, ScopeContext scopeContext)
         {
-            if (!_definedClasses.ContainsKey(functionCall.Name) && !_definedFunctions.ContainsKey(functionCall.Name) && !_stdFunctions.ContainsKey(functionCall.Name))
-            {
-                ErrorsHandler.HandleError($"ERROR: Call undefined function '{functionCall.Name}'");
-            }
-
-            FunctionDefinition calledFunction = null;
-            if (_definedClasses.ContainsKey(functionCall.Name))
-            {
-                calledFunction = _definedClasses[functionCall.Name].Constructor;
-            }
-            else if (_definedFunctions.ContainsKey(functionCall.Name))
-            {
-                calledFunction = _definedFunctions[functionCall.Name];
-            }
-            else if (_stdFunctions.ContainsKey(functionCall.Name))
-            {
-                calledFunction = _stdFunctions[functionCall.Name];
-            }
-            if (calledFunction == null)
-            {
-                throw new Exception();
-            }
-            ValidateCallArguments(scopeContext, functionCall, _definedFunctions[functionCall.Name]);
+            var (leftType, rightType) = ValidateOperatorExpressions(scopeContext, orExpression);
+            if (leftType != BuiltStandardTypesNames.Bool || rightType != BuiltStandardTypesNames.Bool)
+                ErrorsHandler.HandleError($"Can not apply operator 'or' to operands of type '{leftType}' and '{rightType}'");
+            return BuiltStandardTypesNames.Bool;
         }
 
-        private void ValidateMethodCall(ScopeContext scopeContext, MethodCall methodCall)
+        public string VisitAndExpression(AndExpression andExpression, ScopeContext scopeContext)
         {
-            if (!scopeContext.TryGetVariable(methodCall.ObjectName, out var objectVariable))
-            {
-                ErrorsHandler.HandleError($"ERROR: Use of undefined variable {methodCall.ObjectName}");
-            }
-            if (BuiltTypes.Contains(objectVariable.Type))
-            {
-                ErrorsHandler.HandleError($"ERROR: Variable '{objectVariable.Name}' has no complex type");
-            }
-            var variableClass = _definedClasses[objectVariable.Type];
-            if (!variableClass.Functions.ContainsKey(methodCall.Function.Name))
-            {
-                ErrorsHandler.HandleError($"ERROR: Variable '{objectVariable.Name}' has type '{objectVariable.Type}' and has not method '{methodCall.Function.Name}'");
-            }
-            ValidateCallArguments(scopeContext, methodCall.Function, _definedFunctions[methodCall.Function.Name], true);
+            var (leftType, rightType) = ValidateOperatorExpressions(scopeContext, andExpression);
+            if (leftType != BuiltStandardTypesNames.Bool || rightType != BuiltStandardTypesNames.Bool)
+                ErrorsHandler.HandleError($"Can not apply operator 'and' to operands of type '{leftType}' and '{rightType}'");
+            return BuiltStandardTypesNames.Bool;
         }
 
-        private void ValidateCallArguments(ScopeContext scopeContext, FunctionCall functionCall, FunctionDefinition functionDefinition, bool isMethod = false)
+        public string VisitRelativeExpression(RelativeExpression relativeExpression, ScopeContext scopeContext)
         {
-            if (functionDefinition.Parameters.Count() != functionCall.Arguments.Count())
-            {
-                ErrorsHandler.HandleError($"ERROR: Function '{functionDefinition.Name} has {functionDefinition.Parameters.Count()} parameter(s) but is invoked with {functionCall.Arguments.Count()} argument(s)");
-            }
-
-            var callType = isMethod ? "method" : "function";
-            var functionParameters = functionDefinition.Parameters.ToList();
-            var functionArguments = functionCall.Arguments.ToList();
-            for (var i = 0; i < functionArguments.Count; i++)
-            {
-                var parameter = functionParameters[i];
-                var argument = functionArguments[i];
-                ValidateExpression(scopeContext, argument);
-                var argumentType = DetermineExpressionType(scopeContext, functionArguments[i]);
-                if (parameter.Type != argumentType)
-                {
-                    ErrorsHandler.HandleError($"ERROR: Argument type '{argumentType}' is not assignable to parameter type '{parameter.Type}' in {callType} '{functionCall.Name}' call");
-                }
-            }
-        }
-
-        private void ValidatePropertyCall(ScopeContext scopeContext, PropertyCallExpression propertyCallExpression)
-        {
-            if (!scopeContext.TryGetVariable(propertyCallExpression.ObjectName, out var objectVariable))
-            {
-                ErrorsHandler.HandleError($"ERROR: Use of undefined variable {propertyCallExpression.ObjectName}");
-            }
-            if (BuiltTypes.Contains(objectVariable.Type))
-            {
-                ErrorsHandler.HandleError($"ERROR: Variable '{objectVariable.Name}' has no complex type");
-            }
-            var variableClass = _definedClasses[objectVariable.Type];
-            if (!variableClass.Properties.ContainsKey(propertyCallExpression.PropertyName))
-            {
-                ErrorsHandler.HandleError($"ERROR: Can not resolve property '{propertyCallExpression.PropertyName}' for variable '{objectVariable.Name}' with type '{objectVariable.Type}");
-            }
-        }
-
-        private void ValidateVariable(ScopeContext scopeContext, VariableExpression variableExpression)
-        {
-            if (!scopeContext.TryGetVariable(variableExpression.Name, out var variableFromContext))
-            {
-                ErrorsHandler.HandleError($"ERROR: Usage of undefined variable '{variableExpression.Name}'");
-            }
-            if (!variableFromContext.IsInitialized)
-            {
-                ErrorsHandler.HandleError($"ERROR: Usage of uninitialized variable '{variableExpression.Name}'");
-            }
-        }
-
-        private void ValidateAdditiveExpression(ScopeContext scopeContext, AdditiveExpression additiveExpression)
-        {
-            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, additiveExpression);
-            if (leftType != BuiltTypesNames.Int || rightType != BuiltTypesNames.Int)
-            {
-                ErrorsHandler.HandleError($"Can not apply operator '{AdditiveExpressionTypeToOperator.Map[additiveExpression.Type]}' to operands of type '{leftType}' and '{rightType}'");
-            }
-        }
-
-        private void ValidateMultiplicativeExpression(ScopeContext scopeContext, MultiplicativeExpression multiplicativeExpression)
-        {
-            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, multiplicativeExpression);
-            if (leftType != BuiltTypesNames.Int || rightType != BuiltTypesNames.Int)
-            {
-                ErrorsHandler.HandleError($"Can not apply operator '{MultiplicativeExpressionTypeToOperator.Map[multiplicativeExpression.Type]}' to operands of type '{leftType}' and '{rightType}'");
-            }
-        }
-
-        private void ValidateRelativeExpression(ScopeContext scopeContext, RelativeExpression relativeExpression)
-        {
-            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, relativeExpression);
+            var (leftType, rightType) = ValidateOperatorExpressions(scopeContext, relativeExpression);
             if (leftType != rightType 
-                || (leftType != BuiltTypesNames.Bool && leftType != BuiltTypesNames.Int) 
-                || (leftType == BuiltTypesNames.Bool && (relativeExpression.Type != RelativeExpressionType.Equal && relativeExpression.Type != RelativeExpressionType.NotEqual)))
+                || (leftType != BuiltStandardTypesNames.Bool && leftType != BuiltStandardTypesNames.Int) 
+                || (leftType == BuiltStandardTypesNames.Bool && (relativeExpression.Type != RelativeExpressionType.Equal && relativeExpression.Type != RelativeExpressionType.NotEqual)))
             {
                 ErrorsHandler.HandleError($"Can not apply operator '{RelativeExpressionTypeToOperator.Map[relativeExpression.Type]}' to operands of type '{leftType}' and '{rightType}'");
             }
+
+            return BuiltStandardTypesNames.Bool;
         }
 
-        private void ValidateAndExpression(ScopeContext scopeContext, AndExpression andExpression)
+        public string VisitAdditiveExpression(AdditiveExpression additiveExpression, ScopeContext scopeContext)
         {
-            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, andExpression);
-            if (leftType != BuiltTypesNames.Bool || rightType != BuiltTypesNames.Bool)
+            var (leftType, rightType) = ValidateOperatorExpressions(scopeContext, additiveExpression);
+            if (leftType != BuiltStandardTypesNames.Int || rightType != BuiltStandardTypesNames.Int)
+                ErrorsHandler.HandleError($"Can not apply operator '{AdditiveExpressionTypeToOperator.Map[additiveExpression.Type]}' to operands of type '{leftType}' and '{rightType}'");
+            return BuiltStandardTypesNames.Int;
+        }
+
+        public string VisitMultiplicativeExpression(MultiplicativeExpression multiplicativeExpression, ScopeContext scopeContext)
+        {
+            var (leftType, rightType) = ValidateOperatorExpressions(scopeContext, multiplicativeExpression);
+            if (leftType != BuiltStandardTypesNames.Int || rightType != BuiltStandardTypesNames.Int)
+                ErrorsHandler.HandleError($"Can not apply operator '{MultiplicativeExpressionTypeToOperator.Map[multiplicativeExpression.Type]}' to operands of type '{leftType}' and '{rightType}'");
+            return BuiltStandardTypesNames.Int;
+        }
+
+        public string VisitNotExpression(NotExpression notExpression, ScopeContext scopeContext)
+        {
+            var negatedType = notExpression.Left.AcceptSemanticValidator(this, scopeContext);
+            if (negatedType!= BuiltStandardTypesNames.Bool)
+                ErrorsHandler.HandleError($"Can not apply operator 'not' to operand of type '{negatedType}'");
+            return BuiltStandardTypesNames.Bool;
+        }
+
+        public string VisitVariableExpression(VariableExpression variableExpression, ScopeContext scopeContext)
+        {
+            if (!scopeContext.DefinedVariables.TryGetValue(variableExpression.Name, out var variable))
+                ErrorsHandler.HandleError($"ERROR: Usage of undefined variable '{variableExpression.Name}'");
+
+            if (variable == null)
+                return string.Empty;
+
+            if (!variable.IsInitialized)
+                ErrorsHandler.HandleError($"ERROR: Usage of uninitialized variable '{variableExpression.Name}'");
+
+            return variable.Type;
+        }
+
+        public string VisitPropertyCallExpression(PropertyCallExpression propertyCallExpression, ScopeContext scopeContext)
+        {
+            if (!scopeContext.DefinedVariables.TryGetValue(propertyCallExpression.ObjectName, out var objectVariable))
+                ErrorsHandler.HandleError($"ERROR: Use of undefined variable {propertyCallExpression.ObjectName}");
+
+            if (objectVariable == null)
+                return string.Empty;
+            
+            if (!_definedClasses.ContainsKey(objectVariable.Type))
+                ErrorsHandler.HandleError($"ERROR: Variable '{objectVariable.Name}' is not an object and does not support '.' operator");
+
+            var variableClass = _definedClasses[objectVariable.Type];
+            if (!variableClass.Properties.TryGetValue(propertyCallExpression.PropertyName, out var propertyDeclaration))
+                ErrorsHandler.HandleError($"ERROR: Can not resolve property '{propertyCallExpression.PropertyName}' for variable '{objectVariable.Name}' with type '{objectVariable.Type}");
+
+            return propertyDeclaration == null ? string.Empty : propertyDeclaration.Type;
+        }
+
+        public string VisitMethodCallExpression(MethodCall methodCall, ScopeContext scopeContext)
+        {
+            ValidateMethodCall(methodCall, scopeContext);
+            var variableType = scopeContext.DefinedVariables[methodCall.ObjectName].Type;
+            return _definedClasses[variableType].Functions[methodCall.Function.Name].Type;
+        }
+
+        public string VisitFunctionCallExpression(FunctionCall functionCall, ScopeContext scopeContext)
+        {
+            ValidateFunctionCall(functionCall, scopeContext);
+            return scopeContext.DefinedFunctions[functionCall.Name].Type;
+        }
+
+        public string VisitIntLiteralExpression(IntLiteral intLiteral, ScopeContext scopeContext)
+        {
+            return BuiltStandardTypesNames.Int;
+        }
+
+        public string VisitBoolLiteralExpression(BoolLiteral boolLiteral, ScopeContext scopeContext)
+        {
+            return BuiltStandardTypesNames.Bool;
+        }
+
+        public string VisitStringLiteralExpression(StringLiteral stringLiteral, ScopeContext scopeContext)
+        {
+            return BuiltStandardTypesNames.String;
+        }
+
+        private void ValidateFunctionCall(FunctionCall functionCall, ScopeContext scopeContext)
+        {
+            if (!_definedClasses.ContainsKey(functionCall.Name) && !scopeContext.DefinedFunctions.ContainsKey(functionCall.Name) && ! _stdFunctions.ContainsKey(functionCall.Name))
+                ErrorsHandler.HandleError($"ERROR: Call undefined function '{functionCall.Name}'");
+
+            FunctionDefinition calledFunction = null;
+            if (_definedClasses.ContainsKey(functionCall.Name))
+                calledFunction = _definedClasses[functionCall.Name].Constructor;
+            else if (scopeContext.DefinedFunctions.ContainsKey(functionCall.Name))
+                calledFunction = scopeContext.DefinedFunctions[functionCall.Name];
+            else if (_stdFunctions.ContainsKey(functionCall.Name)) calledFunction = _stdFunctions[functionCall.Name];
+            if (calledFunction == null)
+                throw new Exception("Unexpected error");
+            ValidateCallArguments(scopeContext, functionCall, scopeContext.DefinedFunctions[functionCall.Name]);
+        }
+
+        private void ValidateMethodCall(MethodCall methodCall, ScopeContext scopeContext)
+        {
+            if (!scopeContext.DefinedVariables.TryGetValue(methodCall.ObjectName, out var objectVariable))
+                ErrorsHandler.HandleError($"ERROR: Use of undefined variable {methodCall.ObjectName}");
+
+            if (objectVariable == null)
+                throw new Exception("Unexpected error");
+            
+            if (!scopeContext.DefinedFunctions.ContainsKey(objectVariable.Type))
+                ErrorsHandler.HandleError($"ERROR: Variable '{objectVariable.Name}' is not an object and does not support '.' operator");
+
+            var variableClass = _definedClasses[objectVariable.Type];
+            if (!variableClass.Functions.ContainsKey(methodCall.Function.Name))
+                ErrorsHandler.HandleError($"ERROR: Unable to call method '{methodCall.Function.Name}' for variable '{objectVariable.Name}' with type '{objectVariable.Type}'");
+            ValidateCallArguments(scopeContext, methodCall.Function, scopeContext.DefinedFunctions[methodCall.Function.Name], true);
+        }
+        
+        private void ValidateCallArguments(ScopeContext scopeContext, FunctionCall functionCall, FunctionDefinition functionDefinition, bool isMethod = false)
+        {
+            var functionParameters = functionDefinition.Parameters.ToList();
+            var functionArguments = functionCall.Arguments.ToList();
+
+            if (functionParameters.Count != functionArguments.Count)
+                ErrorsHandler.HandleError($"ERROR: Function '{functionDefinition.Name} has {functionParameters.Count} parameter(s) but is invoked with {functionArguments.Count} argument(s)");
+
+            var callType = isMethod ? "method" : "function";
+            for (var i = 0; i < functionArguments.Count; i++)
             {
-                ErrorsHandler.HandleError($"Can not apply operator 'and' to operands of type '{leftType}' and '{rightType}'");
+                var parameterType = functionParameters[i].Type;
+                var argumentType = functionArguments[i].AcceptSemanticValidator(this, scopeContext);
+                if (parameterType != argumentType)
+                    ErrorsHandler.HandleError($"ERROR: Argument type '{argumentType}' is not assignable to parameter type '{parameterType}' in {callType} '{functionCall.Name}' call");
             }
         }
 
-        private void ValidateOrExpression(ScopeContext scopeContext, OrExpression orExpression)
+        private (string leftExpressionType, string rightExpressionType) ValidateOperatorExpressions(ScopeContext scopeContext, IOperatorExpression expression)
         {
-            var (leftType, rightType) = ValidateAndGetInnerExpressionsTypes(scopeContext, orExpression);
-            if (leftType != BuiltTypesNames.Bool || rightType != BuiltTypesNames.Bool)
-            {
-                ErrorsHandler.HandleError($"Can not apply operator 'or' to operands of type '{leftType}' and '{rightType}'");
-            }
+            return (expression.Left.AcceptSemanticValidator(this, scopeContext), expression.Left.AcceptSemanticValidator(this, scopeContext));
         }
 
-        private void ValidateNotExpression(ScopeContext scopeContext, NotExpression notExpression)
+        private void ValidateClassDefinition(DefinedClass definedClass)
         {
-            ValidateExpression(scopeContext, notExpression.Left);
-            var type = DetermineExpressionType(scopeContext, notExpression.Left);
-            if (type != BuiltTypesNames.Bool)
+            foreach (var property in definedClass.Properties.Values)
             {
-                ErrorsHandler.HandleError($"Can not apply operator 'not' to operand of type '{type}'");
-            }
-        }
+                if (!IsTypeDefined(property.Type))
+                    ErrorsHandler.HandleError($"ERROR: Declaration property '{property.Name}' of unknown type '{property.Type}' in class '{definedClass.Name}' definition");
 
-        private (string leftExpressionType, string rightExpressionType) ValidateAndGetInnerExpressionsTypes(ScopeContext scopeContext, IOperatorExpression expression)
-        {
-            ValidateExpression(scopeContext, expression.Left);
-            ValidateExpression(scopeContext, expression.Right);
-            var leftType = DetermineExpressionType(scopeContext, expression.Left);
-            var rightType = DetermineExpressionType(scopeContext, expression.Right);
-            return (leftType, rightType);
+                if (definedClass.DefinedProperties.ContainsKey(property.Name))
+                    ErrorsHandler.HandleError($"ERROR: Redefinition of property '{property.Name} in class '{definedClass.Name}' definition");
+
+                if (property.Value != null)
+                {
+                    var expressionType = property.Value.AcceptSemanticValidator(this, new ScopeContext());
+                    if (property.Type != expressionType)
+                        ErrorsHandler.HandleError($"ERROR: Unable assign expression with type '{expressionType}' to property '{property.Name}' with type '{property.Type}' in class '{definedClass.Name}' definition");
+                }
+                definedClass.DefinedProperties.TryAdd(property.Name, new DefinedVariable(property.Type, property.Name, true));
+            }
+
+            foreach (var methodDefinition in definedClass.Functions.Values)
+            {
+                if (!IsTypeDefined(methodDefinition.Type) && methodDefinition.Type != BuiltSpecialFunctionsTypesNames.Void)
+                    ErrorsHandler.HandleError($"ERROR: Unknown type '{methodDefinition.Type}' in method {methodDefinition.Name} definition in '{definedClass.Name}' class");
+
+                if (definedClass.DefinedMethods.ContainsKey(methodDefinition.Name))
+                    ErrorsHandler.HandleError($"ERROR: Redefinition of method '{methodDefinition.Name}' in '{definedClass.Name}' class");
+
+                var methodScopeContext = new ScopeContext(new Dictionary<string, DefinedFunction>(), definedClass.DefinedProperties);
+                foreach (var parameter in methodDefinition.Parameters)
+                {
+                    if (!IsTypeDefined(parameter.Type))
+                        ErrorsHandler.HandleError($"ERROR: Unknown type '{parameter.Type}' for '{parameter.Name}' parameter in method {methodDefinition.Name} definition in '{definedClass.Name}' class");
+                    
+                    if(!definedClass.DefinedProperties.ContainsKey(parameter.Name))
+                        ErrorsHandler.HandleError($"ERROR: Parameter's '{parameter.Name} conflicts with property in method {methodDefinition.Name} definition in '{definedClass.Name}' class");
+
+                    if (!methodScopeContext.DefinedVariables.TryAdd(parameter.Name, new DefinedVariable(parameter.Type, parameter.Name, true)))
+                        ErrorsHandler.HandleError($"ERROR: Redefinition of parameter '{parameter.Name} in function '{methodDefinition.Name}' definition");
+                }
+                definedClass.DefinedMethods.Add(methodDefinition.Name, new DefinedFunction(methodDefinition, methodScopeContext));
+            }
+
+            foreach (var constructorParameter in definedClass.Constructor.Parameters)
+            {
+                if (!IsTypeDefined(constructorParameter.Type))
+                    ErrorsHandler.HandleError($"ERROR: Unknown type '{constructorParameter.Type}' for '{constructorParameter.Name}' parameter in {definedClass.Name} constructor definition");
+
+                if(!definedClass.DefinedProperties.ContainsKey(constructorParameter.Name))
+                    ErrorsHandler.HandleError($"ERROR: Parameter's '{constructorParameter.Name} conflicts with property in '{definedClass.Name}' constructor definition");
+
+                if (!definedClass.ConstructorScopeContext.DefinedVariables.TryAdd(constructorParameter.Name, new DefinedVariable(constructorParameter.Type, constructorParameter.Name, true)))
+                    ErrorsHandler.HandleError($"ERROR: Redefinition of parameter '{constructorParameter.Name} in '{definedClass.Name}' constructor definition");
+            }
+
+            var variables = definedClass.DefinedProperties.Values.ToList().Concat(definedClass.ConstructorScopeContext.DefinedVariables.Values.ToList());
+            ValidateInstructionsBlock(new ScopeContext(definedClass.DefinedMethods, variables.ToDictionary(x => x.Name, x => x)), definedClass.Constructor.Instructions);
+
+            foreach (var method in definedClass.DefinedMethods.Values)
+            {
+                _currentFunctionType = method.Type;
+                var scopeContext = new ScopeContext(method.ScopeContext)
+                {
+                    DefinedFunctions = _definedFunctions
+                };
+                ValidateInstructionsBlock(scopeContext, method.Instructions);
+            }
         }
     }
-}*/
+}
