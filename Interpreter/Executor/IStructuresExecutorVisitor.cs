@@ -1,6 +1,6 @@
-﻿using Interpreter.ParserModule.Structures.Expressions;
-using Interpreter.ParserModule.Structures.Expressions.Literals;
-using Interpreter.ParserModule.Structures.Instructions;
+﻿using Interpreter.Modules.ParserModule.Structures.Expressions;
+using Interpreter.Modules.ParserModule.Structures.Expressions.Literals;
+using Interpreter.Modules.ParserModule.Structures.Instructions;
 
 namespace Interpreter.Executor
 {

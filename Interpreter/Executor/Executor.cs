@@ -1,39 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.NetworkInformation;
-using Interpreter.ParserModule;
-using Interpreter.ParserModule.Structures.Definitions;
-using Interpreter.ParserModule.Structures.Expressions;
-using Interpreter.ParserModule.Structures.Expressions.Literals;
-using Interpreter.ParserModule.Structures.Expressions.Types;
-using Interpreter.ParserModule.Structures.Instructions;
+using Interpreter.Modules.ParserModule.Structures.Definitions;
+using Interpreter.Modules.ParserModule.Structures.Expressions;
+using Interpreter.Modules.ParserModule.Structures.Expressions.Literals;
+using Interpreter.Modules.ParserModule.Structures.Expressions.Types;
+using Interpreter.Modules.ParserModule.Structures.Instructions;
+using Interpreter.Modules.SemanticValidatorModule;
+using Interpreter.Modules.SemanticValidatorModule.ValidStructures;
+using Interpreter.Modules.StdResources;
 
 namespace Interpreter.Executor
 {
     public class Executor : IStructuresExecutorVisitor
     {
-        private static class BuiltStandardTypesNames
-        {
-            public const string Int = "int";
-            public const string Bool = "bool";
-            public const string String = "string";
-        }
-        
-        private const string MainFunctionName = "Main";
-
         private ExecutableVariable _executableVariableToReturn;
         
-        public void ExecuteProgram(ProgramInstance programInstance)
+        public void ExecuteProgram(ValidProgramInstance validProgramInstance)
         {
             var mainScopeContext = new ExecutableScopeContext
             {
-                Functions = programInstance.Functions,
-                Classes = programInstance.Classes,
+                Functions = validProgramInstance.Functions, //dodac te z std
+                Classes = validProgramInstance.Classes,
                 Variables = new Dictionary<string, ExecutableVariable>()
             };
 
-            var mainFunction = programInstance.Functions[MainFunctionName];
+            var mainFunction = validProgramInstance.Functions[StdNames.MainFunctionName];
             ExecuteFunction(mainFunction, mainScopeContext);
         }
 
@@ -76,7 +68,22 @@ namespace Interpreter.Executor
         public void VisitFunctionCallInstruction(FunctionCall functionCall, ExecutableScopeContext executableScopeContext)
         {
             var functionContext = ExecuteCallArguments(functionCall, executableScopeContext.Functions[functionCall.Name], executableScopeContext);
+            functionContext.Classes = executableScopeContext.Classes;
+            functionContext.Functions = executableScopeContext.Functions;
             ExecuteFunction(executableScopeContext.Functions[functionCall.Name], functionContext);
+        }
+
+        public void VisitMethodCallInstruction(MethodCall methodCall, ExecutableScopeContext executableScopeContext)
+        {
+            var method = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Methods[methodCall.Function.Name];
+            var methodContext = ExecuteCallArguments(methodCall.Function, method, executableScopeContext);
+            methodContext.Classes = executableScopeContext.Classes;
+            methodContext.Functions = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Methods;//i te z std
+            foreach (var (key, value) in executableScopeContext.Variables[methodCall.ObjectName].Properties)
+            {
+                methodContext.Variables.Add(key, value);
+            }
+            ExecuteFunction(method, methodContext);
         }
 
         private ExecutableScopeContext ExecuteCallArguments(FunctionCall functionCall, FunctionDefinition functionDefinition, ExecutableScopeContext executableScopeContext)
@@ -97,19 +104,6 @@ namespace Interpreter.Executor
             return newContext;
         }
 
-        public void VisitMethodCallInstruction(MethodCall methodCall, ExecutableScopeContext executableScopeContext)
-        {
-            var method = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Functions[methodCall.Function.Name];
-            var methodContext = ExecuteCallArguments(methodCall.Function, method, executableScopeContext);
-            methodContext.Classes = executableScopeContext.Classes;
-            methodContext.Functions = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Functions;
-            foreach (var (key, value) in executableScopeContext.Variables[methodCall.ObjectName].Properties)
-            {
-                methodContext.Variables.Add(key, value);
-            }
-            ExecuteFunction(method, methodContext);
-        }
-
         public void VisitReturnInstruction(ReturnInstruction returnInstruction, ExecutableScopeContext executableScopeContext)
         {
             if (returnInstruction.ToReturn != null)
@@ -128,17 +122,11 @@ namespace Interpreter.Executor
             var actualValue = bool.Parse(conditionValue.Value);
             if (actualValue)
             {
-                foreach (var instruction in ifInstruction.BaseInstructions)
-                {
-                    instruction.AcceptExecutor(this, executableScopeContext);
-                }
+                ExecuteInstructionsBlock(ifInstruction.BaseInstructions, executableScopeContext);
             }
             else if (ifInstruction.ElseInstructions != null)
             {
-                foreach (var instruction in ifInstruction.ElseInstructions)
-                {
-                    instruction.AcceptExecutor(this, executableScopeContext);
-                }
+                ExecuteInstructionsBlock(ifInstruction.ElseInstructions, executableScopeContext);
             }
 
             var variablesNamesToDelete = executableScopeContext.Variables.Keys.Where(x => !baseVariablesNames.Contains(x)).ToList();
@@ -155,10 +143,7 @@ namespace Interpreter.Executor
             var actualValue = bool.Parse(conditionValue.Value);
             while (actualValue)
             {
-                foreach (var instruction in whileInstruction.Instructions)
-                {
-                    instruction.AcceptExecutor(this, executableScopeContext);
-                }
+                ExecuteInstructionsBlock(whileInstruction.Instructions, executableScopeContext);
                 conditionValue = whileInstruction.Condition.AcceptExecutor(this, executableScopeContext);
                 actualValue = bool.Parse(conditionValue.Value);
             }
@@ -178,7 +163,7 @@ namespace Interpreter.Executor
             {
                 return new ExecutableVariable
                 {
-                    Type = BuiltStandardTypesNames.Bool,
+                    Type = StdTypesNames.Bool,
                     Value = bool.TrueString
                 };
             }
@@ -187,7 +172,7 @@ namespace Interpreter.Executor
             var actualRightArgumentValue = bool.Parse(rightArgumentValue.Value);
             return new ExecutableVariable
             {
-                Type = BuiltStandardTypesNames.Bool,
+                Type = StdTypesNames.Bool,
                 Value = actualRightArgumentValue.ToString()
             };
         }
@@ -200,7 +185,7 @@ namespace Interpreter.Executor
             {
                 return new ExecutableVariable
                 {
-                    Type = BuiltStandardTypesNames.Bool,
+                    Type = StdTypesNames.Bool,
                     Value = bool.FalseString
                 };
             }
@@ -209,7 +194,7 @@ namespace Interpreter.Executor
             var actualRightArgumentValue = bool.Parse(rightArgumentValue.Value);
             return new ExecutableVariable
             {
-                Type = BuiltStandardTypesNames.Bool,
+                Type = StdTypesNames.Bool,
                 Value = actualRightArgumentValue.ToString()
             };
         }
@@ -220,7 +205,7 @@ namespace Interpreter.Executor
             var rightArgumentValue = relativeExpression.Right.AcceptExecutor(this, executableScopeContext);
 
             bool value;
-            if (leftArgumentValue.Type == BuiltStandardTypesNames.Bool)
+            if (leftArgumentValue.Type == StdTypesNames.Bool)
             {
                 var actualBoolLeftArgumentValue = bool.Parse(leftArgumentValue.Value);
                 var actualBoolRightArgumentValue = bool.Parse(rightArgumentValue.Value);
@@ -245,7 +230,7 @@ namespace Interpreter.Executor
             }
             return new ExecutableVariable
             {
-                Type = BuiltStandardTypesNames.Bool,
+                Type = StdTypesNames.Bool,
                 Value = value.ToString()
             };
         }
@@ -264,7 +249,7 @@ namespace Interpreter.Executor
             };
             return new ExecutableVariable
             {
-                Type = BuiltStandardTypesNames.Int,
+                Type = StdTypesNames.Int,
                 Value = value.ToString()
             };
         }
@@ -284,7 +269,7 @@ namespace Interpreter.Executor
             };
             return new ExecutableVariable
             {
-                Type = BuiltStandardTypesNames.Int,
+                Type = StdTypesNames.Int,
                 Value = value.ToString()
             };
         }
@@ -295,7 +280,7 @@ namespace Interpreter.Executor
             var actualArgumentValue = bool.Parse(argumentValue.Value);
             return new ExecutableVariable
             {
-                Type = BuiltStandardTypesNames.Bool,
+                Type = StdTypesNames.Bool,
                 Value = (!actualArgumentValue).ToString()
             };
         }
@@ -325,21 +310,21 @@ namespace Interpreter.Executor
         public ExecutableVariable VisitIntLiteralExpression(IntLiteral intLiteral, ExecutableScopeContext executableScopeContext) =>
             new()
             {
-                Type = BuiltStandardTypesNames.Bool,
+                Type = StdTypesNames.Bool,
                 Value = intLiteral.Value.ToString()
             };
 
         public ExecutableVariable VisitBoolLiteralExpression(BoolLiteral boolLiteral, ExecutableScopeContext executableScopeContext) =>
             new()
             {
-                Type = BuiltStandardTypesNames.Bool,
+                Type = StdTypesNames.Bool,
                 Value = boolLiteral.Value.ToString()
             };
 
         public ExecutableVariable VisitStringLiteralExpression(StringLiteral stringLiteral, ExecutableScopeContext executableScopeContext) =>
             new()
             {
-                Type = BuiltStandardTypesNames.Bool,
+                Type = StdTypesNames.Bool,
                 Value = stringLiteral.Value
             };
         

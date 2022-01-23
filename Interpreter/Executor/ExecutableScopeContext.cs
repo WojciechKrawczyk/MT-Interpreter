@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
-using Interpreter.ParserModule.Structures.Definitions;
+using Interpreter.Modules.SemanticValidatorModule;
+using Interpreter.Modules.SemanticValidatorModule.ValidStructures;
 
 namespace Interpreter.Executor
 {
     public class ExecutableScopeContext
     {
-        public Dictionary<string, FunctionDefinition> Functions { get; set; } = new();
-        public Dictionary<string, ClassDefinition> Classes { get; set; } = new();
+        public Dictionary<string, ValidFunction> Functions { get; set; } = new();
+        public Dictionary<string, ValidClass> Classes { get; set; } = new();
         public Dictionary<string, ExecutableVariable> Variables { get; set; } = new();
 
         public ExecutableScopeContext Clone()

@@ -43,7 +43,7 @@ namespace Tests.SourceCodeReaderTests
             Assert.Equal(GenerateResult(sourceCode), sourceCode);
         }
 
-        private string GenerateResult(string sourceCode)
+        private static string GenerateResult(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
             var result = new StringBuilder();

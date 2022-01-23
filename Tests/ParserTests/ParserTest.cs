@@ -1,9 +1,10 @@
 ﻿using System.Linq;
-using Interpreter.Lexers;
-using Interpreter.ParserModule;
-using Interpreter.ParserModule.Structures.Expressions;
-using Interpreter.ParserModule.Structures.Expressions.Literals;
-using Interpreter.ParserModule.Structures.Instructions;
+using Interpreter.Errors;
+using Interpreter.Modules.LexerModule;
+using Interpreter.Modules.ParserModule;
+using Interpreter.Modules.ParserModule.Structures.Expressions;
+using Interpreter.Modules.ParserModule.Structures.Expressions.Literals;
+using Interpreter.Modules.ParserModule.Structures.Instructions;
 using Interpreter.SourceCodeReader;
 using Xunit;
 
@@ -16,13 +17,14 @@ namespace Tests.ParserTests
         public void BaseFunctionDefinitionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
-            var function = program.Functions.ToList().Single().Value;
+            var function = program.Functions.ToList().Single();
             Assert.Equal("void", function.Type);
             Assert.Equal("Function", function.Name);
             Assert.Single(function.Parameters);
@@ -36,13 +38,14 @@ namespace Tests.ParserTests
         public void BaseClassDefinitionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Functions);
             Assert.Single(program.Classes);
-            var classDefinition = program.Classes.ToList().Single().Value;
+            var classDefinition = program.Classes.ToList().Single();
             Assert.Equal("Rectangle", classDefinition.Name);
             Assert.NotNull(classDefinition.Constructor);
         }
@@ -52,14 +55,15 @@ namespace Tests.ParserTests
         public void VarDeclarationInstructionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
 
-            var function = program.Functions.ToList().Single().Value;
+            var function = program.Functions.ToList().Single();
             Assert.Equal("void", function.Type);
             Assert.Equal("Function", function.Name);
             Assert.Empty(function.Parameters);
@@ -92,13 +96,14 @@ namespace Tests.ParserTests
         public void AssignmentInstructionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
-            var function = program.Functions.ToList().Single().Value;
+            var function = program.Functions.ToList().Single();
             Assert.Equal("void", function.Type);
             Assert.Equal("Function", function.Name);
             Assert.Equal(2, function.Parameters.Count());
@@ -121,14 +126,15 @@ namespace Tests.ParserTests
         public void FunctionCallInstructionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
 
-            var function = program.Functions.ElementAt(0).Value;
+            var function = program.Functions.ElementAt(0);
             Assert.Equal("void", function.Type);
             Assert.Equal("Function1", function.Name);
             Assert.Empty(function.Parameters);
@@ -148,14 +154,15 @@ namespace Tests.ParserTests
         public void MethodCallInstructionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
 
-            var function = program.Functions.ElementAt(0).Value;
+            var function = program.Functions.ElementAt(0);
             Assert.Equal("void", function.Type);
             Assert.Equal("Function1", function.Name);
             Assert.Empty(function.Parameters);
@@ -176,14 +183,15 @@ namespace Tests.ParserTests
         public void IfInstructionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
 
-            var function = program.Functions.ElementAt(0).Value;
+            var function = program.Functions.ElementAt(0);
             Assert.Equal("void", function.Type);
             Assert.Equal("Function1", function.Name);
             Assert.Empty(function.Parameters);
@@ -207,14 +215,15 @@ namespace Tests.ParserTests
         public void WhileInstructionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
 
-            var function = program.Functions.ElementAt(0).Value;
+            var function = program.Functions.ElementAt(0);
             Assert.Equal("void", function.Type);
             Assert.Equal("Function1", function.Name);
             Assert.Empty(function.Parameters);
@@ -235,14 +244,15 @@ namespace Tests.ParserTests
         public void ReturnInstructionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
 
-            var function = program.Functions.ElementAt(0).Value;
+            var function = program.Functions.ElementAt(0);
             Assert.Equal("void", function.Type);
             Assert.Equal("Function1", function.Name);
             Assert.Empty(function.Parameters);
@@ -267,21 +277,22 @@ namespace Tests.ParserTests
         public void ClaasDefinitionTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Functions);
             Assert.Single(program.Classes);
 
-            var classDefinition = program.Classes.ElementAt(0).Value;
+            var classDefinition = program.Classes.ElementAt(0);
             Assert.Equal("ClassA", classDefinition.Name);
             Assert.Equal(2, classDefinition.Properties.Count);
-            var property1 = classDefinition.Properties.ElementAt(0).Value;
+            var property1 = classDefinition.Properties.ElementAt(0);
             Assert.Equal("int", property1.Type);
             Assert.Equal("X", property1.Name);
             Assert.Null(property1.Value);
-            var property2 = classDefinition.Properties.ElementAt(1).Value;
+            var property2 = classDefinition.Properties.ElementAt(1);
             Assert.Equal("int", property2.Type);
             Assert.Equal("Y", property2.Name);
             Assert.NotNull(property2.Value);
@@ -314,7 +325,7 @@ namespace Tests.ParserTests
             Assert.Equal("y", variable2.Name);
             
             Assert.Single(classDefinition.Functions);
-            var function = classDefinition.Functions.ElementAt(0).Value;
+            var function = classDefinition.Functions.ElementAt(0);
             Assert.Equal("int", function.Type);
             Assert.Equal("Method", function.Name);
             Assert.Empty(function.Parameters);
@@ -331,13 +342,14 @@ namespace Tests.ParserTests
         public void ExpressionsTest(string sourceCode)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
-            var parser = new Parser(lexer);
+            var errorsHandler = new ErrorsHandler();
+            var lexer = new Lexer(reader, errorsHandler);
+            var parser = new Parser(lexer, errorsHandler);
             var success = parser.TryToParseProgram(out var program);
             Assert.True(success);
             Assert.Empty(program.Classes);
             Assert.Single(program.Functions);
-            var function = program.Functions.ToList().Single().Value;
+            var function = program.Functions.ToList().Single();
             Assert.Equal("void", function.Type);
             Assert.Equal("Function", function.Name);
             Assert.Empty(function.Parameters);
