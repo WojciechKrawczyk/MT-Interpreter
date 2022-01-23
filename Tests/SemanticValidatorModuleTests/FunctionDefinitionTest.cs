@@ -4,15 +4,14 @@ using Xunit;
 
 namespace Tests.SemanticValidatorModuleTests
 {
-    public class FunctionHeaderTest : Tester
+    public class FunctionDefinitionTest : Tester
     {
         [Theory]
         [InlineData("program { def void Main() { } def X Function() { } }")]
         public void UnknownReturnTypeTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal("Unknown type 'X' in function 'Function' definition", error);
@@ -23,8 +22,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void ConflictWithClassTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal("Function 'A' conflicts with already defined class 'A'", error);
@@ -35,8 +33,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void RedefinitionFunctionTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal("Redefinition of function 'Function'", error);
@@ -47,8 +44,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void RedefinitionStandardLibFunctionTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal("Redefinition of standard lib function 'PrintInt'", error);
@@ -59,8 +55,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void UnknownParameterTypeTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal("Unknown type 'X' for 'x' parameter in function 'Function' definition", error);
@@ -71,8 +66,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void RedefinitionParameterTypeTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal("Redefinition of parameter 'a' in function 'Function' definition", error);

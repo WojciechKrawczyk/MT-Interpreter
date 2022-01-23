@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using Interpreter.Modules.SemanticValidatorModule;
 using Interpreter.Modules.SemanticValidatorModule.ValidStructures;
 
 namespace Interpreter.Executor

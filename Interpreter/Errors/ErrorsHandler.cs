@@ -6,6 +6,7 @@ namespace Interpreter.Errors
     public class ErrorsHandler
     {
         public List<string> Errors => _errorMessages;
+        public List<string> Warnings => _warningMessages;
 
 
         private readonly List<string> _errorMessages = new();
@@ -18,7 +19,7 @@ namespace Interpreter.Errors
         {
             PrintWarningAndErrors();
             Console.WriteLine($"FATAL ERROR: {fatalErrorMessage}");
-            throw new StopInterpretationException();
+            throw new Exception(fatalErrorMessage);
         }
 
         public void StopInterpretation()

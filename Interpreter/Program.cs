@@ -1,17 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using Interpreter.SourceCodeReader;
 
 namespace Interpreter
 {
-    class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            /*Console.Write("Type path to .txt file with source code: ");
+            Console.Write("Type path to .txt file with source code: ");
             var path = Console.ReadLine();
-            var read = new FileSourceCodeReader(path);*/
+            var read = new FileSourceCodeReader(path);
+            Interpreter.InterpretProgram(read);
         }
     }
 }

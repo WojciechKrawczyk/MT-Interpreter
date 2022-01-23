@@ -6,7 +6,7 @@ namespace Interpreter.Modules.SemanticValidatorModule
     public class ScopeContext
     {
         public Dictionary<string, DefinedFunction> DefinedFunctions { get; set; } = new();
-        public Dictionary<string, DefinedVariable> DefinedVariables { get; } = new();
+        public Dictionary<string, DefinedVariable> DefinedVariables { get; set; } = new();
 
         public ScopeContext(){}
 

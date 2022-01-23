@@ -60,6 +60,9 @@ namespace Interpreter.Modules.SemanticValidatorModule
                 ValidateClassDefinition(definedCLass);
             }
 
+            if (_errorsHandler.Errors.Any())
+                _errorsHandler.StopInterpretation();
+
             return new ValidProgramInstance
             {
                 Functions = _definedFunctions.Values
@@ -70,10 +73,12 @@ namespace Interpreter.Modules.SemanticValidatorModule
                     {
                         Name = x.Name,
                         Constructor = x.Constructor,
-                        Methods = x.Functions
+                        Methods = x.DefinedMethods.Values
                             .Select(y => new ValidFunction(y.Name, y.Type, y.Parameters, y.Instructions))
                             .ToDictionary(y => y.Name, y => y),
-                        Properties = x.Properties.ToDictionary(y => y.Name, y => y)
+                        Properties = x.DefinedProperties.Values.
+                            Select(y => x.Properties.First(z => z.Name == y.Name))
+                            .ToDictionary(y => y.Name, y=> y)
                     })
                     .ToDictionary(x => x.Name, x => x)
             };
@@ -81,13 +86,85 @@ namespace Interpreter.Modules.SemanticValidatorModule
 
         private void ValidateClassDefinitionHeader(ClassDefinition classDefinition)
         {
+            var isClassOk = true;
             if (_definedClasses.ContainsKey(classDefinition.Name))
                 _errorsHandler.HandleError($"Redefinition of class '{classDefinition.Name}'");
 
             if (classDefinition.Name == StdNames.MainFunctionName)
-                _errorsHandler.HandleError($"Class can not be declared with name '{StdNames.MainFunctionName}'");
+            {
+                _errorsHandler.HandleError($"Class can not be defined with name '{StdNames.MainFunctionName}'");
+                isClassOk = false;
+            }
 
-            _definedClasses.Add(classDefinition.Name, new DefinedClass(classDefinition, new ScopeContext()));
+            var definedProperties = new Dictionary<string, DefinedVariable>();
+            foreach (var property in classDefinition.Properties)
+            {
+                if (!IsTypeDefined(property.Type))
+                    _errorsHandler.HandleError($"Declaration property '{property.Name}' of unknown type '{property.Type}' in class '{classDefinition.Name}' definition");
+
+                if (definedProperties.ContainsKey(property.Name))
+                    _errorsHandler.HandleError($"Redefinition of property '{property.Name}' in class '{classDefinition.Name}' definition");
+
+                if (property.Value != null)
+                {
+                    var expressionType = property.Value.AcceptSemanticValidator(this, new ScopeContext());
+                    if (property.Type != expressionType)
+                    {
+                        _errorsHandler.HandleError($"Unable assign expression with type '{expressionType}' to property '{property.Name}' with type '{property.Type}' in class '{classDefinition.Name}' definition");
+                    }
+                }
+                definedProperties.TryAdd(property.Name, new DefinedVariable(property.Type, property.Name, property.Value != null));
+            }
+
+            var definedMethods = new Dictionary<string, DefinedFunction>();
+            foreach (var methodDefinition in classDefinition.Functions)
+            {
+                if (!IsTypeDefined(methodDefinition.Type) && methodDefinition.Type != StdTypesNames.Void)
+                    _errorsHandler.HandleError($"Unknown type '{methodDefinition.Type}' in method '{methodDefinition.Name}' definition in '{classDefinition.Name}' class");
+
+                if (definedMethods.ContainsKey(methodDefinition.Name))
+                    _errorsHandler.HandleError($"Redefinition of method '{methodDefinition.Name}' in '{classDefinition.Name}' class");
+                
+                if (_stdFunctions.ContainsKey(methodDefinition.Name))
+                    _errorsHandler.HandleError($"Redefinition of std function '{methodDefinition.Name}' in '{classDefinition.Name}' class");
+
+                var methodScopeContext = new ScopeContext();
+                foreach (var parameter in methodDefinition.Parameters)
+                {
+                    if (!IsTypeDefined(parameter.Type))
+                        _errorsHandler.HandleError($"Unknown type '{parameter.Type}' for '{parameter.Name}' parameter in method '{methodDefinition.Name}' definition in '{classDefinition.Name}' class");
+                    
+                    if(definedProperties.ContainsKey(parameter.Name))
+                        _errorsHandler.HandleError($"Parameter '{parameter.Name}' conflicts with property in method '{methodDefinition.Name}' definition in '{classDefinition.Name}' class");
+
+                    if (!methodScopeContext.DefinedVariables.TryAdd(parameter.Name, new DefinedVariable(parameter.Type, parameter.Name, true)))
+                        _errorsHandler.HandleError($"Redefinition of parameter '{parameter.Name}' in method '{methodDefinition.Name}' definition");
+                }
+                definedMethods.TryAdd(methodDefinition.Name, new DefinedFunction(methodDefinition, methodScopeContext));
+            }
+            foreach (var method in definedMethods.Values)
+            {
+                method.ScopeContext.DefinedFunctions = definedMethods;
+            }
+
+            var constructorScopeContext = new ScopeContext();
+            foreach (var constructorParameter in classDefinition.Constructor.Parameters)
+            {
+                if (!IsTypeDefined(constructorParameter.Type))
+                    _errorsHandler.HandleError($"Unknown type '{constructorParameter.Type}' for '{constructorParameter.Name}' parameter in constructor definition in '{classDefinition.Name}' class");
+                
+                if(definedProperties.ContainsKey(constructorParameter.Name))
+                    _errorsHandler.HandleError($"Parameter '{constructorParameter.Name}' conflicts with property in constructor definition in '{classDefinition.Name}' class");
+
+                if (constructorScopeContext.DefinedVariables.ContainsKey(constructorParameter.Name))
+                    _errorsHandler.HandleError($"Redefinition of parameter '{constructorParameter.Name}' in constructor definition in '{classDefinition.Name}' class");
+
+                if (!definedProperties.ContainsKey(constructorParameter.Name) && !constructorScopeContext.DefinedVariables.ContainsKey(constructorParameter.Name))
+                    constructorScopeContext.DefinedVariables.Add(constructorParameter.Name, new DefinedVariable(constructorParameter.Type, constructorParameter.Name, true));
+            }
+
+            if(isClassOk)
+                _definedClasses.TryAdd(classDefinition.Name, new DefinedClass(classDefinition, definedProperties, definedMethods, constructorScopeContext));
         }
         
         private void ValidateFunctionDefinitionHeader(FunctionDefinition functionDefinition)
@@ -169,7 +246,9 @@ namespace Interpreter.Modules.SemanticValidatorModule
 
         public void VisitFunctionCallInstruction(FunctionCall functionCall, ScopeContext scopeContext)
         {
-            ValidateFunctionCall(functionCall, scopeContext);
+            var isDefined = ValidateFunctionCall(functionCall, scopeContext);
+            if (!isDefined)
+                return;
             var functionType = scopeContext.DefinedFunctions[functionCall.Name].Type;
             if (functionType != StdTypesNames.Void)
                 _errorsHandler.HandleWarning($"Return value from function '{functionCall.Name}' is not used");
@@ -177,18 +256,20 @@ namespace Interpreter.Modules.SemanticValidatorModule
 
         public void VisitMethodCallInstruction(MethodCall methodCall, ScopeContext scopeContext)
         {
-            ValidateMethodCall(methodCall, scopeContext);
+            var isOk = ValidateMethodCall(methodCall, scopeContext);
+            if (!isOk)
+                return;
             var objectType = scopeContext.DefinedVariables[methodCall.ObjectName].Type;
             var methodType = _definedClasses[objectType].DefinedMethods[methodCall.Function.Name].Type;
             if (methodType != StdTypesNames.Void)
-                _errorsHandler.HandleWarning($"Return value from method '{methodCall.Function.Name}' call on object '{methodCall.ObjectName}' is not used");
+                _errorsHandler.HandleWarning($"Return value from method '{methodCall.Function.Name}' called on object '{methodCall.ObjectName}' is not used");
         }
 
         public void VisitReturnInstruction(ReturnInstruction returnInstruction, ScopeContext scopeContext)
         {
             var expressionType = returnInstruction.ToReturn == null ? StdTypesNames.Void : returnInstruction.ToReturn.AcceptSemanticValidator(this, scopeContext);
             if (expressionType != _currentFunctionType)
-                _errorsHandler.HandleError($"Can not convert expression type '{expressionType}' to return type '{_currentFunctionType}'");
+                _errorsHandler.HandleError($"Can not convert expression type '{expressionType}' to return function type '{_currentFunctionType}'");
         }
 
         public void VisitIfInstruction(IfInstruction ifInstruction, ScopeContext scopeContext)
@@ -197,7 +278,8 @@ namespace Interpreter.Modules.SemanticValidatorModule
             if (conditionType != StdTypesNames.Bool)
                 _errorsHandler.HandleError($"Condition expression has to have '{StdTypesNames.Bool}' type");
             ValidateInstructionsBlock(new ScopeContext(scopeContext), ifInstruction.BaseInstructions);
-            ValidateInstructionsBlock(new ScopeContext(scopeContext), ifInstruction.ElseInstructions);
+            if (ifInstruction.ElseInstructions != null)
+                ValidateInstructionsBlock(new ScopeContext(scopeContext), ifInstruction.ElseInstructions);
         }
 
         public void VisitWhileInstruction(WhileInstruction whileInstruction, ScopeContext scopeContext)
@@ -278,16 +360,22 @@ namespace Interpreter.Modules.SemanticValidatorModule
         public string VisitPropertyCallExpression(PropertyCallExpression propertyCallExpression, ScopeContext scopeContext)
         {
             if (!scopeContext.DefinedVariables.TryGetValue(propertyCallExpression.ObjectName, out var objectVariable))
-                _errorsHandler.HandleError($"Use of undefined variable {propertyCallExpression.ObjectName}");
+                _errorsHandler.HandleError($"Use of undefined variable '{propertyCallExpression.ObjectName}'");
 
             if (objectVariable == null)
                 return string.Empty;
-            
+
             if (!_definedClasses.ContainsKey(objectVariable.Type))
+            {
                 _errorsHandler.HandleError($"Variable '{objectVariable.Name}' is not an object and does not support '.' operator");
+                return string.Empty;
+            }
+
+            if (!objectVariable.IsInitialized)
+                _errorsHandler.HandleError($"Variable '{objectVariable.Name}' is not initialized");
 
             var variableClass = _definedClasses[objectVariable.Type];
-            if (!variableClass.DefinedMethods.TryGetValue(propertyCallExpression.PropertyName, out var propertyDeclaration))
+            if (!variableClass.DefinedProperties.TryGetValue(propertyCallExpression.PropertyName, out var propertyDeclaration))
                 _errorsHandler.HandleError($"Can not resolve property '{propertyCallExpression.PropertyName}' for variable '{objectVariable.Name}' with type '{objectVariable.Type}");
 
             return propertyDeclaration == null ? string.Empty : propertyDeclaration.Type;
@@ -303,7 +391,9 @@ namespace Interpreter.Modules.SemanticValidatorModule
         public string VisitFunctionCallExpression(FunctionCall functionCall, ScopeContext scopeContext)
         {
             ValidateFunctionCall(functionCall, scopeContext);
-            return scopeContext.DefinedFunctions[functionCall.Name].Type;
+            return _definedClasses.TryGetValue(functionCall.Name, out var functionClass) 
+                ? functionClass.Name 
+                : scopeContext.DefinedFunctions[functionCall.Name].Type;
         }
 
         public string VisitIntLiteralExpression(IntLiteral intLiteral, ScopeContext scopeContext)
@@ -321,10 +411,13 @@ namespace Interpreter.Modules.SemanticValidatorModule
             return StdTypesNames.String;
         }
 
-        private void ValidateFunctionCall(FunctionCall functionCall, ScopeContext scopeContext)
+        private bool ValidateFunctionCall(FunctionCall functionCall, ScopeContext scopeContext)
         {
-            if (!_definedClasses.ContainsKey(functionCall.Name) && !scopeContext.DefinedFunctions.ContainsKey(functionCall.Name) && ! _stdFunctions.ContainsKey(functionCall.Name))
+            if (!_definedClasses.ContainsKey(functionCall.Name) && !scopeContext.DefinedFunctions.ContainsKey(functionCall.Name) && !_stdFunctions.ContainsKey(functionCall.Name))
+            {
                 _errorsHandler.HandleError($"Call undefined function '{functionCall.Name}'");
+                return false;
+            }
 
             FunctionDefinition calledFunction = null;
             if (_definedClasses.ContainsKey(functionCall.Name))
@@ -334,24 +427,35 @@ namespace Interpreter.Modules.SemanticValidatorModule
             else if (_stdFunctions.ContainsKey(functionCall.Name)) calledFunction = _stdFunctions[functionCall.Name];
             if (calledFunction == null)
                 throw new Exception("Unexpected error");
-            ValidateCallArguments(scopeContext, functionCall, scopeContext.DefinedFunctions[functionCall.Name]);
+            ValidateCallArguments(scopeContext, functionCall, calledFunction);
+            return true;
         }
 
-        private void ValidateMethodCall(MethodCall methodCall, ScopeContext scopeContext)
+        private bool ValidateMethodCall(MethodCall methodCall, ScopeContext scopeContext)
         {
             if (!scopeContext.DefinedVariables.TryGetValue(methodCall.ObjectName, out var objectVariable))
-                _errorsHandler.HandleError($"Use of undefined variable {methodCall.ObjectName}");
+            {
+                _errorsHandler.HandleError($"Use of undefined variable '{methodCall.ObjectName}'");
+                return false;
+            }
 
-            if (objectVariable == null)
-                throw new Exception("Unexpected error");
-            
-            if (!scopeContext.DefinedFunctions.ContainsKey(objectVariable.Type))
+            if (!_definedClasses.TryGetValue(objectVariable.Type, out var objectClass))
+            {
                 _errorsHandler.HandleError($"Variable '{objectVariable.Name}' is not an object and does not support '.' operator");
+                return false;
+            }
+            
+            if (!objectVariable.IsInitialized)
+                _errorsHandler.HandleError($"Variable '{objectVariable.Name}' is not initialized");
 
-            var variableClass = _definedClasses[objectVariable.Type];
-            if (!variableClass.DefinedMethods.ContainsKey(methodCall.Function.Name))
-                _errorsHandler.HandleError($"Unable to call method '{methodCall.Function.Name}' for variable '{objectVariable.Name}' with type '{objectVariable.Type}'");
-            ValidateCallArguments(scopeContext, methodCall.Function, scopeContext.DefinedFunctions[methodCall.Function.Name], true);
+            if (!objectClass.DefinedMethods.ContainsKey(methodCall.Function.Name))
+            {
+                _errorsHandler.HandleError($"Call undefined method '{methodCall.Function.Name}' on object '{objectVariable.Name}'");
+                return false;
+            }
+
+            ValidateCallArguments(scopeContext, methodCall.Function, _definedClasses[objectVariable.Type].DefinedMethods[methodCall.Function.Name], true);
+            return true;
         }
         
         private void ValidateCallArguments(ScopeContext scopeContext, FunctionCall functionCall, FunctionDefinition functionDefinition, bool isMethod = false)
@@ -359,11 +463,13 @@ namespace Interpreter.Modules.SemanticValidatorModule
             var functionParameters = functionDefinition.Parameters.ToList();
             var functionArguments = functionCall.Arguments.ToList();
 
+            var callType = isMethod ? "Method" : "Function";
             if (functionParameters.Count != functionArguments.Count)
-                _errorsHandler.HandleError($"Function '{functionDefinition.Name} has {functionParameters.Count} parameter(s) but is invoked with {functionArguments.Count} argument(s)");
+                _errorsHandler.HandleError($"{callType} '{functionDefinition.Name}' has {functionParameters.Count} parameter(s) but is invoked with {functionArguments.Count} argument(s)");
 
-            var callType = isMethod ? "method" : "function";
-            for (var i = 0; i < functionArguments.Count; i++)
+            callType = isMethod ? "method" : "function";
+            var length = Math.Min(functionParameters.Count, functionArguments.Count);
+            for (var i = 0; i < length; i++)
             {
                 var parameterType = functionParameters[i].Type;
                 var argumentType = functionArguments[i].AcceptSemanticValidator(this, scopeContext);
@@ -374,63 +480,11 @@ namespace Interpreter.Modules.SemanticValidatorModule
 
         private (string leftExpressionType, string rightExpressionType) ValidateOperatorExpressions(ScopeContext scopeContext, IOperatorExpression expression)
         {
-            return (expression.Left.AcceptSemanticValidator(this, scopeContext), expression.Left.AcceptSemanticValidator(this, scopeContext));
+            return (expression.Left.AcceptSemanticValidator(this, scopeContext), expression.Right.AcceptSemanticValidator(this, scopeContext));
         }
 
         private void ValidateClassDefinition(DefinedClass definedClass)
         {
-            foreach (var property in definedClass.Properties)
-            {
-                if (!IsTypeDefined(property.Type))
-                    _errorsHandler.HandleError($"Declaration property '{property.Name}' of unknown type '{property.Type}' in class '{definedClass.Name}' definition");
-
-                if (definedClass.DefinedProperties.ContainsKey(property.Name))
-                    _errorsHandler.HandleError($"Redefinition of property '{property.Name} in class '{definedClass.Name}' definition");
-
-                if (property.Value != null)
-                {
-                    var expressionType = property.Value.AcceptSemanticValidator(this, new ScopeContext());
-                    if (property.Type != expressionType)
-                        _errorsHandler.HandleError($"Unable assign expression with type '{expressionType}' to property '{property.Name}' with type '{property.Type}' in class '{definedClass.Name}' definition");
-                }
-                definedClass.DefinedProperties.TryAdd(property.Name, new DefinedVariable(property.Type, property.Name, property.Value != null));
-            }
-
-            foreach (var methodDefinition in definedClass.Functions)
-            {
-                if (!IsTypeDefined(methodDefinition.Type) && methodDefinition.Type != StdTypesNames.Void)
-                    _errorsHandler.HandleError($"Unknown type '{methodDefinition.Type}' in method {methodDefinition.Name} definition in '{definedClass.Name}' class");
-
-                if (definedClass.DefinedMethods.ContainsKey(methodDefinition.Name))
-                    _errorsHandler.HandleError($"Redefinition of method '{methodDefinition.Name}' in '{definedClass.Name}' class");
-
-                var methodScopeContext = new ScopeContext(new Dictionary<string, DefinedFunction>(), definedClass.DefinedProperties);
-                foreach (var parameter in methodDefinition.Parameters)
-                {
-                    if (!IsTypeDefined(parameter.Type))
-                        _errorsHandler.HandleError($"Unknown type '{parameter.Type}' for '{parameter.Name}' parameter in method {methodDefinition.Name} definition in '{definedClass.Name}' class");
-                    
-                    if(!definedClass.DefinedProperties.ContainsKey(parameter.Name))
-                        _errorsHandler.HandleError($"Parameter's '{parameter.Name} conflicts with property in method {methodDefinition.Name} definition in '{definedClass.Name}' class");
-
-                    if (!methodScopeContext.DefinedVariables.TryAdd(parameter.Name, new DefinedVariable(parameter.Type, parameter.Name, true)))
-                        _errorsHandler.HandleError($"Redefinition of parameter '{parameter.Name} in function '{methodDefinition.Name}' definition");
-                }
-                definedClass.DefinedMethods.Add(methodDefinition.Name, new DefinedFunction(methodDefinition, methodScopeContext));
-            }
-
-            foreach (var constructorParameter in definedClass.Constructor.Parameters)
-            {
-                if (!IsTypeDefined(constructorParameter.Type))
-                    _errorsHandler.HandleError($"Unknown type '{constructorParameter.Type}' for '{constructorParameter.Name}' parameter in {definedClass.Name} constructor definition");
-
-                if(!definedClass.DefinedProperties.ContainsKey(constructorParameter.Name))
-                    _errorsHandler.HandleError($"Parameter's '{constructorParameter.Name} conflicts with property in '{definedClass.Name}' constructor definition");
-
-                if (!definedClass.ConstructorScopeContext.DefinedVariables.TryAdd(constructorParameter.Name, new DefinedVariable(constructorParameter.Type, constructorParameter.Name, true)))
-                    _errorsHandler.HandleError($"Redefinition of parameter '{constructorParameter.Name} in '{definedClass.Name}' constructor definition");
-            }
-
             var variables = definedClass.DefinedProperties.Values.ToList().Concat(definedClass.ConstructorScopeContext.DefinedVariables.Values.ToList());
             ValidateInstructionsBlock(new ScopeContext(definedClass.DefinedMethods, variables.ToDictionary(x => x.Name, x => x)), definedClass.Constructor.Instructions);
 

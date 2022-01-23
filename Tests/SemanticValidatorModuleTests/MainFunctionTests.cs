@@ -12,8 +12,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void NoMainFunctionTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal($"No '{StdNames.MainFunctionName}' function is defined", error);
@@ -24,8 +23,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void MainFunctionTypeTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal($"Function '{StdNames.MainFunctionName} have to have '{StdTypesNames.Void}' type", error);
@@ -36,8 +34,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void MainFunctionParametersTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Single(errors);
             var error = errors.ElementAt(0);
             Assert.Equal($"Function '{StdNames.MainFunctionName} can not have parameters", error);
@@ -48,8 +45,7 @@ namespace Tests.SemanticValidatorModuleTests
         public void CorrectMainFunctionTest(string sourceCode)
         {
             var errorsHandler = new ErrorsHandler();
-            var validProgram = ValidateProgramInstance(errorsHandler, sourceCode);
-            var errors = errorsHandler.Errors;
+            var errors = GetErrorsFromProgramInstance(errorsHandler, sourceCode);
             Assert.Empty(errors);
         }
     }
