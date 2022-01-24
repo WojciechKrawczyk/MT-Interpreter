@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Text;
-using Interpreter.Errors;
 using Interpreter.Extensions;
+using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.LexerModule.Maps;
 using Interpreter.Modules.LexerModule.Tokens;
-using Interpreter.SourceCodeReader;
+using Interpreter.Modules.SourceCodeReaderModule;
 
 namespace Interpreter.Modules.LexerModule
 {
@@ -68,14 +68,14 @@ namespace Interpreter.Modules.LexerModule
         private void IgnoreNonSignificantSymbols()
         {
             _symbol = GetNextSymbol();
-            while (char.IsWhiteSpace(_symbol) || _symbol.IsEndOfLine() || _symbol == '#')
+            while (_symbol.IsEndOfLine() || char.IsWhiteSpace(_symbol) || _symbol == '#')
             {
-                if (char.IsWhiteSpace(_symbol))
-                    HandleWhiteSpaces();
+                if (_symbol.IsEndOfLine())
+                    HandleEndOfLine();
                 else if (_symbol == '#')
                     HandleComment();
                 else
-                    HandleEndOfLine();
+                    HandleWhiteSpaces();
             }
 
             void HandleWhiteSpaces()
@@ -179,6 +179,7 @@ namespace Interpreter.Modules.LexerModule
                     continue;
                 }
 
+                buffor.Append(_symbol);
                 _symbol = GetNextSymbol();
                 i++;
             }

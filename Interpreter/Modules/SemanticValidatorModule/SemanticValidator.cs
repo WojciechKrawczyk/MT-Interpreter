@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Interpreter.Errors;
+using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.ParserModule;
 using Interpreter.Modules.ParserModule.Structures.Definitions;
 using Interpreter.Modules.ParserModule.Structures.Expressions;
@@ -86,10 +86,10 @@ namespace Interpreter.Modules.SemanticValidatorModule
 
         private void ValidateClassDefinitionHeader(ClassDefinition classDefinition)
         {
-            var isClassOk = true;
             if (_definedClasses.ContainsKey(classDefinition.Name))
                 _errorsHandler.HandleError($"Redefinition of class '{classDefinition.Name}'");
 
+            var isClassOk = true;
             if (classDefinition.Name == StdNames.MainFunctionName)
             {
                 _errorsHandler.HandleError($"Class can not be defined with name '{StdNames.MainFunctionName}'");
@@ -113,7 +113,7 @@ namespace Interpreter.Modules.SemanticValidatorModule
                         _errorsHandler.HandleError($"Unable assign expression with type '{expressionType}' to property '{property.Name}' with type '{property.Type}' in class '{classDefinition.Name}' definition");
                     }
                 }
-                definedProperties.TryAdd(property.Name, new DefinedVariable(property.Type, property.Name, property.Value != null));
+                definedProperties.TryAdd(property.Name, new DefinedVariable(property.Type, property.Name, true));
             }
 
             var definedMethods = new Dictionary<string, DefinedFunction>();
@@ -145,6 +145,10 @@ namespace Interpreter.Modules.SemanticValidatorModule
             foreach (var method in definedMethods.Values)
             {
                 method.ScopeContext.DefinedFunctions = definedMethods;
+                foreach (var (key, value) in definedProperties)
+                {
+                    method.ScopeContext.DefinedVariables.Add(key, value);
+                }
             }
 
             var constructorScopeContext = new ScopeContext();
@@ -161,6 +165,10 @@ namespace Interpreter.Modules.SemanticValidatorModule
 
                 if (!definedProperties.ContainsKey(constructorParameter.Name) && !constructorScopeContext.DefinedVariables.ContainsKey(constructorParameter.Name))
                     constructorScopeContext.DefinedVariables.Add(constructorParameter.Name, new DefinedVariable(constructorParameter.Type, constructorParameter.Name, true));
+            }
+            foreach (var (key, value) in definedProperties)
+            {
+                constructorScopeContext.DefinedVariables.Add(key, value);
             }
 
             if(isClassOk)
@@ -242,6 +250,8 @@ namespace Interpreter.Modules.SemanticValidatorModule
             var expressionType = assignment.Expression.AcceptSemanticValidator(this, scopeContext);
             if (variable.Type != expressionType)
                 _errorsHandler.HandleError($"Unable assign expression with type '{expressionType}' to variable '{variable.Name}' with type '{variable.Type}'");
+
+            variable.SetInitialized();
         }
 
         public void VisitFunctionCallInstruction(FunctionCall functionCall, ScopeContext scopeContext)
@@ -249,7 +259,11 @@ namespace Interpreter.Modules.SemanticValidatorModule
             var isDefined = ValidateFunctionCall(functionCall, scopeContext);
             if (!isDefined)
                 return;
-            var functionType = scopeContext.DefinedFunctions[functionCall.Name].Type;
+
+            var functionType = _stdFunctions.TryGetValue(functionCall.Name, out var function) 
+                ? function.Type 
+                : scopeContext.DefinedFunctions[functionCall.Name].Type;
+
             if (functionType != StdTypesNames.Void)
                 _errorsHandler.HandleWarning($"Return value from function '{functionCall.Name}' is not used");
         }
@@ -485,8 +499,7 @@ namespace Interpreter.Modules.SemanticValidatorModule
 
         private void ValidateClassDefinition(DefinedClass definedClass)
         {
-            var variables = definedClass.DefinedProperties.Values.ToList().Concat(definedClass.ConstructorScopeContext.DefinedVariables.Values.ToList());
-            ValidateInstructionsBlock(new ScopeContext(definedClass.DefinedMethods, variables.ToDictionary(x => x.Name, x => x)), definedClass.Constructor.Instructions);
+            ValidateInstructionsBlock(new ScopeContext(definedClass.DefinedMethods, definedClass.ConstructorScopeContext.DefinedVariables), definedClass.Constructor.Instructions);
 
             foreach (var method in definedClass.DefinedMethods.Values)
             {

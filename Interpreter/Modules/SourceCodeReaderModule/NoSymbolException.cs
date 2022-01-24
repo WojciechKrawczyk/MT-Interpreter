@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Interpreter.SourceCodeReader
+namespace Interpreter.Modules.SourceCodeReaderModule
 {
     public class NoSymbolException : Exception
     {

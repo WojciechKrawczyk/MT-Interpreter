@@ -1,4 +1,4 @@
-﻿namespace Interpreter.SourceCodeReader
+﻿namespace Interpreter.Modules.SourceCodeReaderModule
 {
     public interface ISourceCodeReader
     {

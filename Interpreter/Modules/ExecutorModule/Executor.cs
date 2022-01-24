@@ -6,21 +6,28 @@ using Interpreter.Modules.ParserModule.Structures.Expressions;
 using Interpreter.Modules.ParserModule.Structures.Expressions.Literals;
 using Interpreter.Modules.ParserModule.Structures.Expressions.Types;
 using Interpreter.Modules.ParserModule.Structures.Instructions;
-using Interpreter.Modules.SemanticValidatorModule;
 using Interpreter.Modules.SemanticValidatorModule.ValidStructures;
 using Interpreter.Modules.StdResources;
 
-namespace Interpreter.Executor
+namespace Interpreter.Modules.ExecutorModule
 {
     public class Executor : IStructuresExecutorVisitor
     {
         private ExecutableVariable _executableVariableToReturn;
+        private readonly Dictionary<string, ValidFunction> _stdFunctions;
+
+        public Executor()
+        {
+            _stdFunctions = StdFunctions.Functions.Values
+                .Select(x => new ValidFunction(x.Name, x.Type, x.Parameters, x.Instructions))
+                .ToDictionary(x => x.Name, x => x);
+        }
         
         public void ExecuteProgram(ValidProgramInstance validProgramInstance)
         {
             var mainScopeContext = new ExecutableScopeContext
             {
-                Functions = validProgramInstance.Functions, //dodac te z std
+                Functions = validProgramInstance.Functions,
                 Classes = validProgramInstance.Classes,
                 Variables = new Dictionary<string, ExecutableVariable>()
             };
@@ -33,14 +40,28 @@ namespace Interpreter.Executor
         {
             try
             {
+                if (_stdFunctions.ContainsKey(functionDefinition.Name))
+                {
+                    Console.WriteLine(executableScopeContext.Variables.First().Value.Value);
+                }
+
+                if (executableScopeContext.Classes.ContainsKey(functionDefinition.Name))
+                {
+                    ExecuteInstructionsBlock(functionDefinition.Instructions, executableScopeContext);
+                    return new ExecutableVariable
+                    {
+                        Type = functionDefinition.Name,
+                        Properties = executableScopeContext.Variables
+                    };
+                }
                 ExecuteInstructionsBlock(functionDefinition.Instructions, executableScopeContext);
             }
-            catch (ReturnException returnException)
+            catch (ReturnException)
             {
                 return _executableVariableToReturn.Clone();
             }
 
-            throw new Exception();
+            return null;
         }
 
         private void ExecuteInstructionsBlock(IEnumerable<IInstruction> instructions, ExecutableScopeContext executableScopeContext)
@@ -53,7 +74,7 @@ namespace Interpreter.Executor
 
         public void VisitVarDeclarationInstruction(VarDeclaration varDeclaration, ExecutableScopeContext executableScopeContext)
         {
-            var variable = varDeclaration.Value.AcceptExecutor(this, executableScopeContext);
+            var variable = varDeclaration.Value.AcceptExecutor(this, executableScopeContext) ?? new ExecutableVariable();
             variable.Type = varDeclaration.Type;
             variable.Name = varDeclaration.Name;
             executableScopeContext.Variables.Add(variable.Name, variable);
@@ -67,10 +88,13 @@ namespace Interpreter.Executor
 
         public void VisitFunctionCallInstruction(FunctionCall functionCall, ExecutableScopeContext executableScopeContext)
         {
-            var functionContext = ExecuteCallArguments(functionCall, executableScopeContext.Functions[functionCall.Name], executableScopeContext);
+            _stdFunctions.TryGetValue(functionCall.Name, out var function);
+            function ??= executableScopeContext.Functions[functionCall.Name];
+
+            var functionContext = ExecuteCallArguments(functionCall, function, executableScopeContext);
             functionContext.Classes = executableScopeContext.Classes;
             functionContext.Functions = executableScopeContext.Functions;
-            ExecuteFunction(executableScopeContext.Functions[functionCall.Name], functionContext);
+            ExecuteFunction(function, functionContext);
         }
 
         public void VisitMethodCallInstruction(MethodCall methodCall, ExecutableScopeContext executableScopeContext)
@@ -78,12 +102,16 @@ namespace Interpreter.Executor
             var method = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Methods[methodCall.Function.Name];
             var methodContext = ExecuteCallArguments(methodCall.Function, method, executableScopeContext);
             methodContext.Classes = executableScopeContext.Classes;
-            methodContext.Functions = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Methods;//i te z std
+            methodContext.Functions = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Methods;
             foreach (var (key, value) in executableScopeContext.Variables[methodCall.ObjectName].Properties)
             {
                 methodContext.Variables.Add(key, value);
             }
             ExecuteFunction(method, methodContext);
+            foreach (var property in executableScopeContext.Variables[methodCall.ObjectName].Properties)
+            {
+                property.Value.Value = methodContext.Variables[property.Key].Value;
+            }
         }
 
         private ExecutableScopeContext ExecuteCallArguments(FunctionCall functionCall, FunctionDefinition functionDefinition, ExecutableScopeContext executableScopeContext)
@@ -299,18 +327,45 @@ namespace Interpreter.Executor
 
         public ExecutableVariable VisitMethodCallExpression(MethodCall methodCall, ExecutableScopeContext executableScopeContext)
         {
-            throw new System.NotImplementedException();
+            var method = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Methods[methodCall.Function.Name];
+            var methodContext = ExecuteCallArguments(methodCall.Function, method, executableScopeContext);
+            methodContext.Classes = executableScopeContext.Classes;
+            methodContext.Functions = executableScopeContext.Classes[executableScopeContext.Variables[methodCall.ObjectName].Type].Methods;
+            foreach (var (key, value) in executableScopeContext.Variables[methodCall.ObjectName].Properties)
+            {
+                methodContext.Variables.Add(key, value);
+            }
+            return ExecuteFunction(method, methodContext);
         }
 
         public ExecutableVariable VisitFunctionCallExpression(FunctionCall functionCall, ExecutableScopeContext executableScopeContext)
         {
-            throw new System.NotImplementedException();
+            if (executableScopeContext.Functions.TryGetValue(functionCall.Name, out var function))
+            {
+                var functionContext = ExecuteCallArguments(functionCall, function, executableScopeContext);
+                functionContext.Classes = executableScopeContext.Classes;
+                functionContext.Functions = executableScopeContext.Functions;
+                return ExecuteFunction(function, functionContext);
+            }
+
+            var constructor = executableScopeContext.Classes[functionCall.Name].Constructor;
+            var constructorContext = ExecuteCallArguments(functionCall, constructor, executableScopeContext);
+            constructorContext.Classes = executableScopeContext.Classes;
+            constructorContext.Functions = executableScopeContext.Classes[functionCall.Name].Methods;
+            var newObject = ExecuteFunction(constructor, constructorContext);
+            var toDelete = newObject.Properties
+                .Where(x => !executableScopeContext.Classes[functionCall.Name].Properties.ContainsKey(x.Key));
+            foreach (var toDeletePair in toDelete)
+            {
+                newObject.Properties.Remove(toDeletePair.Key);
+            }
+            return newObject;
         }
 
         public ExecutableVariable VisitIntLiteralExpression(IntLiteral intLiteral, ExecutableScopeContext executableScopeContext) =>
             new()
             {
-                Type = StdTypesNames.Bool,
+                Type = StdTypesNames.Int,
                 Value = intLiteral.Value.ToString()
             };
 
@@ -324,7 +379,7 @@ namespace Interpreter.Executor
         public ExecutableVariable VisitStringLiteralExpression(StringLiteral stringLiteral, ExecutableScopeContext executableScopeContext) =>
             new()
             {
-                Type = StdTypesNames.Bool,
+                Type = StdTypesNames.String,
                 Value = stringLiteral.Value
             };
         

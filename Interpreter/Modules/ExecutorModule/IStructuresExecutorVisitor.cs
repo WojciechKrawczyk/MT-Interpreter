@@ -2,7 +2,7 @@
 using Interpreter.Modules.ParserModule.Structures.Expressions.Literals;
 using Interpreter.Modules.ParserModule.Structures.Instructions;
 
-namespace Interpreter.Executor
+namespace Interpreter.Modules.ExecutorModule
 {
     public interface IStructuresExecutorVisitor
     { 

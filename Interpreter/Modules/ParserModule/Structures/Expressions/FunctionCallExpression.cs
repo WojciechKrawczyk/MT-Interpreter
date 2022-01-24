@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Interpreter.Executor;
+using Interpreter.Modules.ExecutorModule;
 using Interpreter.Modules.ParserModule.Structures.Instructions;
 using Interpreter.Modules.SemanticValidatorModule;
 

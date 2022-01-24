@@ -1,5 +1,5 @@
 ﻿using System.Linq;
-using Interpreter.Errors;
+using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.StdResources;
 using Xunit;
 

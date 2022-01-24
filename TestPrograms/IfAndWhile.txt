@@ -1,0 +1,32 @@
+program
+{
+   def void Main()
+   {
+      PrintString("Example 1 - if");
+      int a = 3;
+      if (a < 5)
+      {
+         PrintString("Inside if");
+      }
+
+      PrintString("Example 2 - if&else");
+      bool b = false;
+      if (b)
+      {
+         PrintString("Inside if");
+      }
+      else
+      {
+         PrintString("Inside else");
+      }
+
+      PrintString("Example 2 - while");
+      int i = 0;
+      while(i < 5)
+      {
+         PrintInt(i);
+         i = i + 1;
+      }
+   }
+}
+

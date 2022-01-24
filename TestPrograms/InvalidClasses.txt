@@ -1,0 +1,53 @@
+program
+{
+   class A
+   {
+      def init()
+      {
+      }
+   }
+
+   class A
+   {
+      def init()
+      {
+      }
+   }
+
+   class Main
+   {
+      def init()
+      {
+      }
+   }
+
+   class B
+   {
+      def init()
+      {
+      }
+
+      A a;
+      AA a;
+
+      def void M()
+      {
+      }
+
+      def void M()
+      {
+      }
+
+      def int MM(int x, int x)
+      {
+      }
+   }
+
+   def void Main()
+   {
+
+   }
+}
+
+
+

@@ -1,0 +1,30 @@
+program
+{
+   def C MakeSomething(int x)
+   {
+	
+   }
+
+   def int MakeSomething(int x)
+   {
+	
+   }
+
+   def int UpsFunction(A x, int x)
+   {
+
+   }
+
+   def void GoodFunction(int a, int b)
+   {
+
+   }
+
+   def void Main()
+   {
+      GoodFunction(1);
+   }
+}
+
+
+

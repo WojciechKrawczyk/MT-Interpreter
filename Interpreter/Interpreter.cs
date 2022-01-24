@@ -1,7 +1,7 @@
-﻿using Interpreter.Errors;
+﻿using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.LexerModule;
 using Interpreter.Modules.ParserModule;
-using Interpreter.SourceCodeReader;
+using Interpreter.Modules.SourceCodeReaderModule;
 
 namespace Interpreter
 {
@@ -17,7 +17,7 @@ namespace Interpreter
                 parser.TryToParseProgram(out var program);
                 var semanticValidator = new Modules.SemanticValidatorModule.SemanticValidator(errorsHandler);
                 var validProgram = semanticValidator.ValidateProgram(program);
-                var executor = new Executor.Executor();
+                var executor = new Modules.ExecutorModule.Executor();
                 executor.ExecuteProgram(validProgram);
                 return true;
             }

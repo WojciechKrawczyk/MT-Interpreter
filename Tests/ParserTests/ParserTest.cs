@@ -1,11 +1,11 @@
 ﻿using System.Linq;
-using Interpreter.Errors;
+using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.LexerModule;
 using Interpreter.Modules.ParserModule;
 using Interpreter.Modules.ParserModule.Structures.Expressions;
 using Interpreter.Modules.ParserModule.Structures.Expressions.Literals;
 using Interpreter.Modules.ParserModule.Structures.Instructions;
-using Interpreter.SourceCodeReader;
+using Interpreter.Modules.SourceCodeReaderModule;
 using Xunit;
 
 namespace Tests.ParserTests

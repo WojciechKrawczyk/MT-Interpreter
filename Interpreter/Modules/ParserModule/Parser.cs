@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Interpreter.Errors;
+using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.LexerModule;
 using Interpreter.Modules.LexerModule.Tokens;
 using Interpreter.Modules.ParserModule.Structures;

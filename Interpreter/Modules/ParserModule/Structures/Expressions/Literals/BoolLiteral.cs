@@ -1,4 +1,4 @@
-﻿using Interpreter.Executor;
+﻿using Interpreter.Modules.ExecutorModule;
 using Interpreter.Modules.SemanticValidatorModule;
 
 namespace Interpreter.Modules.ParserModule.Structures.Expressions.Literals

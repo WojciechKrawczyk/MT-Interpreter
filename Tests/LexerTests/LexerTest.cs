@@ -1,8 +1,8 @@
-﻿using Interpreter.SourceCodeReader;
-using System.Collections.Generic;
-using Interpreter.Errors;
+﻿using System.Collections.Generic;
+using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.LexerModule;
 using Interpreter.Modules.LexerModule.Tokens;
+using Interpreter.Modules.SourceCodeReaderModule;
 using Xunit;
 
 namespace Tests.LexerTests

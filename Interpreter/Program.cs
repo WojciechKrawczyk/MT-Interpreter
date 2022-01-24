@@ -1,5 +1,5 @@
 ﻿using System;
-using Interpreter.SourceCodeReader;
+using Interpreter.Modules.SourceCodeReaderModule;
 
 namespace Interpreter
 {

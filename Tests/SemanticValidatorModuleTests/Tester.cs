@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using Interpreter.Errors;
+using Interpreter.Modules.ErrorsHandlerModule;
 using Interpreter.Modules.LexerModule;
 using Interpreter.Modules.ParserModule;
 using Interpreter.Modules.SemanticValidatorModule;
-using Interpreter.SourceCodeReader;
+using Interpreter.Modules.SourceCodeReaderModule;
 
 namespace Tests.SemanticValidatorModuleTests
 {

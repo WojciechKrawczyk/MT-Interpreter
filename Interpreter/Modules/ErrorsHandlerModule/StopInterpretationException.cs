@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Interpreter.Errors
+namespace Interpreter.Modules.ErrorsHandlerModule
 {
     public class StopInterpretationException : Exception
     {

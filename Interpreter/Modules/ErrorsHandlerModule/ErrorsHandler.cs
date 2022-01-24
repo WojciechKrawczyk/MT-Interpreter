@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Interpreter.Errors
+namespace Interpreter.Modules.ErrorsHandlerModule
 {
     public class ErrorsHandler
     {
@@ -19,7 +19,7 @@ namespace Interpreter.Errors
         {
             PrintWarningAndErrors();
             Console.WriteLine($"FATAL ERROR: {fatalErrorMessage}");
-            throw new Exception(fatalErrorMessage);
+            throw new StopInterpretationException();
         }
 
         public void StopInterpretation()

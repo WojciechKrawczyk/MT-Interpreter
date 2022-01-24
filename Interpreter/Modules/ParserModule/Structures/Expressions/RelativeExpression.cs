@@ -1,4 +1,4 @@
-﻿using Interpreter.Executor;
+﻿using Interpreter.Modules.ExecutorModule;
 using Interpreter.Modules.ParserModule.Structures.Expressions.Types;
 using Interpreter.Modules.SemanticValidatorModule;
 

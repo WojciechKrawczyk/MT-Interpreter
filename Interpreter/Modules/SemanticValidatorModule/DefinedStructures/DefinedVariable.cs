@@ -13,6 +13,6 @@
             IsInitialized = isInitialized;
         }
 
-        public void InitializeVariable() => IsInitialized = true;
+        public void SetInitialized() => IsInitialized = true;
     }
 }

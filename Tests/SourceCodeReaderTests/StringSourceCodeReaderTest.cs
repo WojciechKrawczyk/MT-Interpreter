@@ -1,5 +1,5 @@
-﻿using Interpreter.SourceCodeReader;
-using System.Text;
+﻿using System.Text;
+using Interpreter.Modules.SourceCodeReaderModule;
 using Xunit;
 
 namespace Tests.SourceCodeReaderTests

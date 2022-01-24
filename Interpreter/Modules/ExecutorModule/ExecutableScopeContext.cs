@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Interpreter.Modules.SemanticValidatorModule.ValidStructures;
 
-namespace Interpreter.Executor
+namespace Interpreter.Modules.ExecutorModule
 {
     public class ExecutableScopeContext
     {

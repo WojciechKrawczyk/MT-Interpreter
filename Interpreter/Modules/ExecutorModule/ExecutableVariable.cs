@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Interpreter.Executor
+namespace Interpreter.Modules.ExecutorModule
 {
     public class ExecutableVariable
     {
@@ -15,11 +15,15 @@ namespace Interpreter.Executor
             {
                 Type = Type,
                 Name = Name,
-                Value = Value
+                Value = Value,
+                Properties = new Dictionary<string, ExecutableVariable>()
             };
-            foreach (var property in Properties.Values)
+            if (Properties != null)
             {
-                newExecutableVariable.Properties.Add(property.Name, property.Clone());
+                foreach (var (key, value) in Properties)
+                {
+                    newExecutableVariable.Properties.Add(key, value.Clone());
+                }
             }
 
             return newExecutableVariable;
