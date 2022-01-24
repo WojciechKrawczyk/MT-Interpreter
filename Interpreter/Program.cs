@@ -1,12 +1,16 @@
 ﻿using System;
+using Interpreter.Modules.SourceCodeReaderModule;
 
 namespace Interpreter
 {
-    class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            Console.WriteLine("Interpreter project");
+            Console.Write("Type path to .txt file with source code: ");
+            var path = Console.ReadLine();
+            var read = new FileSourceCodeReader(path);
+            Interpreter.InterpretProgram(read);
         }
     }
 }

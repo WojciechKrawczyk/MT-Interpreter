@@ -1,0 +1,34 @@
+program
+{
+   def int Power(int x, int y)
+   {
+      int i = 1;
+      int r = x;
+      while(i < y)
+      {
+         r = r * x;
+         i = i + 1;
+      }
+      return r;
+   }
+
+   def void Recursion(int x)
+   {
+      if (x > 0)
+      {
+         Recursion(x - 1);
+      }
+      PrintInt(x);
+   }
+
+   def void Main()
+   {
+      PrintString("Power function");
+      int a = Power(2, 8);
+      PrintInt(a);
+
+      PrintString("Recursion");
+      Recursion(10);
+   }
+}
+

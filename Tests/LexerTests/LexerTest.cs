@@ -1,7 +1,8 @@
-﻿using Interpreter.Lexers;
-using Interpreter.SourceCodeReader;
-using Interpreter.Tokens;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using Interpreter.Modules.ErrorsHandlerModule;
+using Interpreter.Modules.LexerModule;
+using Interpreter.Modules.LexerModule.Tokens;
+using Interpreter.Modules.SourceCodeReaderModule;
 using Xunit;
 
 namespace Tests.LexerTests
@@ -50,7 +51,7 @@ namespace Tests.LexerTests
         public void SingleTokenTest(string sourceCode, TokenType expectedTokenType)
         {
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
+            var lexer = new Lexer(reader, new ErrorsHandler());
             Assert.Equal(lexer.GetNextToken().TokenType, expectedTokenType);
         }
 
@@ -103,7 +104,7 @@ namespace Tests.LexerTests
         {
             var tokens = new List<TokenType>();
             var reader = new StringSourceCodeReader(sourceCode);
-            var lexer = new Lexer(reader);
+            var lexer = new Lexer(reader, new ErrorsHandler());
             var token = lexer.GetNextToken();
             while (token.TokenType != TokenType.EndOfFile)
             {

@@ -1,0 +1,45 @@
+program
+{
+   #comment 1
+
+   def void Main()
+   {
+      int a = 1;
+      PrintInt(a);
+      PrintInt(2);
+
+      bool b = true;
+      PrintBool(b);
+      PrintBool(false);
+
+      PrintString("template");
+
+      PrintString("Math operators");
+      int eight = 8;
+      int five = 5;
+      PrintInt(eight + five);
+      PrintInt(eight - five);
+      PrintInt(eight * five);
+      PrintInt(eight / five);
+      PrintInt(eight % five);
+
+      PrintString("Relative operator");
+      PrintBool(eight < five);
+      PrintBool(eight <= five);
+      PrintBool(eight > five);
+      PrintBool(eight >= five);
+      PrintBool(eight == five);
+      PrintBool(eight != five);
+
+      PrintString("Logic operators");
+      bool t = 1 < 3 and 3 < 1;
+      PrintBool(t);
+      t = false or true;
+      PrintBool(t);
+      t = not (1 == 0);
+      PrintBool(t);
+
+      #comment 2
+   }
+}
+

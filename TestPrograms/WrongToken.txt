@@ -1,0 +1,16 @@
+program
+{
+   class A
+   {
+      def init(}
+      {
+      }
+   } 
+
+   def void Main()
+   {
+   }
+}
+
+
+

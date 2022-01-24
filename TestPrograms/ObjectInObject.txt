@@ -1,0 +1,53 @@
+program
+{
+   class A
+   {
+      def init(int x, int y)
+      {
+         X = x;
+         Y = y;
+      }
+
+      int X;
+      int Y;
+
+      def void Change()
+      {
+         X = X + 1;
+         Y = Y - 1;
+      }
+
+      def int GetX()
+      {
+         return X;
+      }
+
+      def void Print()
+      {
+         PrintString("X");
+         PrintInt(X);
+         PrintString("Y");
+         PrintInt(Y);
+      }
+   }
+
+   class B
+   {
+      def init(int x, int y)
+      {
+         a = A(x, y);
+      }
+
+      A a;
+   } 
+
+   def void Main()
+   {
+      B b = B(60, 80);
+      A a = b.a;
+      a.Print();
+   }
+}
+
+
+
